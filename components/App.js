@@ -283,11 +283,7 @@ export default function App() {
         @keyframes pulse-ring{0%{transform:scale(0.5);opacity:1}100%{transform:scale(2.2);opacity:0}}
       `}</style>
 
-      {/* Leaflet CSS */}
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-      {typeof window!=='undefined' && !window.L && (
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" async/>
-      )}
+
 
       {/* Modals */}
       {ancAlert && <AncientAlert find={ancAlert} lang={lang} onClose={()=>setAncAlert(null)}/>}

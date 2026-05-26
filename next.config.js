@@ -1,4 +1,5 @@
-import '../styles/globals.css'
-export default function App({ Component, pageProps }) {
-  return <Component {...pageProps} />
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
 }
+module.exports = nextConfig
