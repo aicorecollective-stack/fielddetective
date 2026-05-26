@@ -220,6 +220,8 @@ export default function App() {
   const [sessState, setSessState] = useState('idle')
   const [showTimelapse, setShowTimelapse] = useState(false)
   const [timelapseCenter, setTimelapseCenter] = useState(null)
+  const [pickingArea, setPickingArea] = useState(false)
+  const mapCenterRef = useRef({lat:37.9838, lng:23.7275})
   const [sessTime, setSessTime] = useState(0)
   const [curPos, setCurPos] = useState(null)
   const [route, setRoute] = useState([])
@@ -307,6 +309,37 @@ export default function App() {
         </div>
       )}
 
+      {/* Crosshair area picker overlay */}
+      {pickingArea && tab==='map' && (
+        <div style={{position:'fixed',inset:0,zIndex:9000,pointerEvents:'none'}}>
+          {/* Dim overlay */}
+          <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.25)'}}/>
+          {/* Crosshair */}
+          <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',textAlign:'center',pointerEvents:'none'}}>
+            <div style={{fontSize:'48px',lineHeight:1,filter:'drop-shadow(0 2px 6px rgba(0,0,0,0.8))'}}>⊕</div>
+            <div style={{color:'white',fontSize:'13px',marginTop:'8px',background:'rgba(0,0,0,0.6)',padding:'4px 12px',borderRadius:'10px',whiteSpace:'nowrap'}}>
+              {lang==='el'?'Κέντρασε τον χάρτη στην περιοχή σου':'Pan map to your area'}
+            </div>
+          </div>
+          {/* Buttons */}
+          <div style={{position:'absolute',bottom:'90px',left:0,right:0,display:'flex',gap:'12px',padding:'0 20px',pointerEvents:'all'}}>
+            <button onClick={()=>setPickingArea(false)}
+              style={{flex:1,background:'#1e293b',border:'1px solid #334155',color:'#94a3b8',padding:'14px',borderRadius:'12px',fontWeight:'700',fontSize:'15px',cursor:'pointer'}}>
+              ✕ {lang==='el'?'Ακύρωση':'Cancel'}
+            </button>
+            <button onClick={()=>{
+              const c = mapCenterRef.current
+              setTimelapseCenter(c)
+              setPickingArea(false)
+              setShowTimelapse(true)
+            }}
+              style={{flex:2,background:'linear-gradient(135deg,#6366f1,#4f46e5)',border:'none',color:'white',padding:'14px',borderRadius:'12px',fontWeight:'700',fontSize:'15px',cursor:'pointer',boxShadow:'0 4px 16px rgba(99,102,241,0.4)'}}>
+              🎬 {lang==='el'?'Επιβεβαίωση Περιοχής':'Confirm Area'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Timelapse modal */}
       {showTimelapse && timelapseCenter && (
         <Timelapse center={timelapseCenter} onClose={()=>setShowTimelapse(false)}/>
@@ -356,6 +389,8 @@ export default function App() {
                 layerIdx={layerIdx}
                 onMapClick={handleMapClick}
                 tapMode={tapMode}
+                pickingArea={pickingArea}
+                mapCenterRef={mapCenterRef}
               />
               {/* Tap banner */}
               {tapMode && (
@@ -390,11 +425,7 @@ export default function App() {
                     style={{width:'100%',background:'linear-gradient(135deg,#d4a853,#b8882f)',border:'none',color:'#0f172a',padding:'15px',borderRadius:'14px',fontWeight:'700',fontSize:'16px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'10px',boxShadow:'0 4px 20px rgba(212,168,83,0.35)'}}>
                     <PlayIco/>{t.map_start}
                   </button>
-                  <button onClick={()=>{
-                    const c = curPos || {lat:37.9838, lng:23.7275}
-                    setTimelapseCenter(c)
-                    setShowTimelapse(true)
-                  }}
+                  <button onClick={()=>setPickingArea(true)}
                     style={{width:'100%',background:'#1e293b',border:'1px solid #334155',color:'#94a3b8',padding:'12px',borderRadius:'12px',fontWeight:'600',fontSize:'14px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
                     🎬 {lang==='el'?'Timelapse Περιοχής':'Area Timelapse'}
                   </button>
