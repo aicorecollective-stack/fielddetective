@@ -1,128 +1,134 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MAP_LAYERS } from './constants'
 import { getR, isAnc } from './helpers'
 
 export default function MapComponent({ finds, currentPos, routePoints, layerIdx, onMapClick, tapMode }) {
-  const mapRef      = useRef(null)
-  const mapInst     = useRef(null)
-  const tileRef     = useRef(null)
-  const markersRef  = useRef([])
-  const routeRef    = useRef(null)
-  const posRef      = useRef(null)
-  const LRef        = useRef(null)
+  const divRef     = useRef(null)
+  const mapRef     = useRef(null)   // leaflet map instance
+  const tileRef    = useRef(null)   // current tile layer
+  const markersRef = useRef([])
+  const routePLRef = useRef(null)
+  const posMarkRef = useRef(null)
+  const [ready, setReady] = useState(false)
 
-  // ── Init map + load Leaflet from npm ──────────────────────────────────────
+  // ── 1. Load Leaflet + init map ─────────────────────────────────────────────
   useEffect(() => {
-    if (!mapRef.current || mapInst.current) return
+    let cancelled = false
+    import('leaflet').then(mod => {
+      if (cancelled || !divRef.current || mapRef.current) return
+      const L = mod.default || mod
 
-    // Import leaflet dynamically (avoids SSR issues)
-    import('leaflet').then(L => {
-      // Fix default marker icons
+      // Fix icon paths
       delete L.Icon.Default.prototype._getIconUrl
       L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-        iconUrl:       'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-        shadowUrl:     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
       })
 
-      LRef.current = L
+      const center = currentPos ? [currentPos.lat, currentPos.lng] : [37.9838, 23.7275]
+      mapRef.current = L.map(divRef.current, { zoomControl: true }).setView(center, 14)
 
-      const center = currentPos
-        ? [currentPos.lat, currentPos.lng]
-        : [37.9838, 23.7275]
+      // Add initial tile layer (index 0 = street)
+      const cfg = MAP_LAYERS[0]
+      tileRef.current = L.tileLayer(cfg.url, {
+        attribution: cfg.attribution,
+        maxZoom: cfg.maxZoom || 18,
+        ...(cfg.subdomains ? { subdomains: cfg.subdomains } : {}),
+      }).addTo(mapRef.current)
 
-      mapInst.current = L.map(mapRef.current, { zoomControl: true })
-        .setView(center, 14)
-
-      // Add initial tile layer
-      const layer = MAP_LAYERS[0]
-      const opts  = { attribution: layer.attribution, maxZoom: layer.maxZoom || 18 }
-      if (layer.subdomains) opts.subdomains = layer.subdomains
-      tileRef.current = L.tileLayer(layer.url, opts).addTo(mapInst.current)
-
-      // Click handler
-      mapInst.current.on('click', e => {
+      mapRef.current.on('click', e => {
         if (onMapClick) onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng })
       })
 
-      // Multiple invalidateSize calls for mobile
-      ;[100, 400, 900, 1800].forEach(d =>
-        setTimeout(() => mapInst.current?.invalidateSize(), d)
-      )
-    })
+      ;[100, 500, 1200].forEach(d => setTimeout(() => mapRef.current?.invalidateSize(), d))
 
-    // Cleanup
+      setReady(true)  // ← this makes layer effect re-run with correct state
+    })
     return () => {
-      if (mapInst.current) { mapInst.current.remove(); mapInst.current = null }
+      cancelled = true
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
     }
   }, [])
 
-  // ── Switch tile layer ─────────────────────────────────────────────────────
+  // ── 2. Switch tile layer ───────────────────────────────────────────────────
+  // Depends on BOTH layerIdx AND ready — so if user clicks before map loads,
+  // this runs again once ready becomes true
   useEffect(() => {
-    const L = LRef.current
-    if (!L || !mapInst.current) return
+    if (!ready || !mapRef.current) return
 
-    if (tileRef.current) {
-      mapInst.current.removeLayer(tileRef.current)
-      tileRef.current = null
-    }
+    import('leaflet').then(mod => {
+      const L = mod.default || mod
+      if (!mapRef.current) return
 
-    const layer = MAP_LAYERS[layerIdx]
-    const opts  = { attribution: layer.attribution, maxZoom: layer.maxZoom || 18 }
-    if (layer.subdomains) opts.subdomains = layer.subdomains
-    tileRef.current = L.tileLayer(layer.url, opts).addTo(mapInst.current)
-  }, [layerIdx])
+      if (tileRef.current) {
+        mapRef.current.removeLayer(tileRef.current)
+        tileRef.current = null
+      }
 
-  // ── Find markers ─────────────────────────────────────────────────────────
+      const cfg = MAP_LAYERS[layerIdx]
+      tileRef.current = L.tileLayer(cfg.url, {
+        attribution: cfg.attribution,
+        maxZoom: cfg.maxZoom || 18,
+        ...(cfg.subdomains ? { subdomains: cfg.subdomains } : {}),
+      }).addTo(mapRef.current)
+    })
+  }, [layerIdx, ready])   // ← KEY FIX: depends on ready
+
+  // ── 3. Find markers ────────────────────────────────────────────────────────
   useEffect(() => {
-    const L = LRef.current
-    if (!L || !mapInst.current) return
-
-    markersRef.current.forEach(m => mapInst.current.removeLayer(m))
-    markersRef.current = []
-
-    finds.forEach(f => {
-      const rv   = getR(f.rarity)
-      const icon = L.divIcon({
-        html: `<div style="width:28px;height:28px;border-radius:50%;background:${rv.color};border:3px solid white;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,0.5)">${rv.emoji}</div>`,
-        iconSize: [28, 28], className: ''
+    if (!ready || !mapRef.current) return
+    import('leaflet').then(mod => {
+      const L = mod.default || mod
+      markersRef.current.forEach(m => mapRef.current?.removeLayer(m))
+      markersRef.current = []
+      finds.forEach(f => {
+        const rv = getR(f.rarity)
+        const icon = L.divIcon({
+          html: `<div style="width:26px;height:26px;border-radius:50%;background:${rv.color};border:3px solid white;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 6px rgba(0,0,0,0.4)">${rv.emoji}</div>`,
+          iconSize: [26, 26], className: '',
+        })
+        markersRef.current.push(
+          L.marker([f.lat, f.lng], { icon })
+            .addTo(mapRef.current)
+            .bindPopup(`<b>${f.name}</b><br><small>${f.category} · ${f.depth}cm${isAnc(f) ? ' · ⚠️' : ''}</small>`)
+        )
       })
-      markersRef.current.push(
-        L.marker([f.lat, f.lng], { icon })
-          .addTo(mapInst.current)
-          .bindPopup(`<b>${f.name}</b><br><small>${f.category} · ${f.depth}cm${isAnc(f) ? ' · ⚠️' : ''}</small>`)
-      )
     })
-  }, [finds])
+  }, [finds, ready])
 
-  // ── Route polyline ────────────────────────────────────────────────────────
+  // ── 4. Route ───────────────────────────────────────────────────────────────
   useEffect(() => {
-    const L = LRef.current
-    if (!L || !mapInst.current || routePoints.length < 2) return
-    if (routeRef.current) mapInst.current.removeLayer(routeRef.current)
-    routeRef.current = L.polyline(
-      routePoints.map(p => [p.lat, p.lng]),
-      { color: '#d4a853', weight: 3, dashArray: '6 4' }
-    ).addTo(mapInst.current)
-  }, [routePoints])
-
-  // ── Current position dot ──────────────────────────────────────────────────
-  useEffect(() => {
-    const L = LRef.current
-    if (!L || !mapInst.current || !currentPos) return
-    if (posRef.current) mapInst.current.removeLayer(posRef.current)
-    const icon = L.divIcon({
-      html: `<div style="width:18px;height:18px;border-radius:50%;background:#3b82f6;border:3px solid white;box-shadow:0 0 0 4px rgba(59,130,246,0.3)"></div>`,
-      iconSize: [18, 18], className: ''
+    if (!ready || !mapRef.current || routePoints.length < 2) return
+    import('leaflet').then(mod => {
+      const L = mod.default || mod
+      if (routePLRef.current) mapRef.current?.removeLayer(routePLRef.current)
+      routePLRef.current = L.polyline(
+        routePoints.map(p => [p.lat, p.lng]),
+        { color: '#d4a853', weight: 3, dashArray: '6 4' }
+      ).addTo(mapRef.current)
     })
-    posRef.current = L.marker([currentPos.lat, currentPos.lng], { icon, zIndexOffset: 1000 })
-      .addTo(mapInst.current)
-    mapInst.current.panTo([currentPos.lat, currentPos.lng])
-  }, [currentPos])
+  }, [routePoints, ready])
+
+  // ── 5. Position dot ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!ready || !mapRef.current || !currentPos) return
+    import('leaflet').then(mod => {
+      const L = mod.default || mod
+      if (posMarkRef.current) mapRef.current?.removeLayer(posMarkRef.current)
+      const icon = L.divIcon({
+        html: `<div style="width:16px;height:16px;border-radius:50%;background:#3b82f6;border:3px solid white;box-shadow:0 0 0 4px rgba(59,130,246,0.3)"></div>`,
+        iconSize: [16, 16], className: '',
+      })
+      posMarkRef.current = L.marker([currentPos.lat, currentPos.lng], { icon, zIndexOffset: 1000 })
+        .addTo(mapRef.current)
+      mapRef.current.panTo([currentPos.lat, currentPos.lng])
+    })
+  }, [currentPos, ready])
 
   return (
     <div
-      ref={mapRef}
+      ref={divRef}
       style={{ width: '100%', height: '100%', cursor: tapMode ? 'crosshair' : 'grab' }}
     />
   )
