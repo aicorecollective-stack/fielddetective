@@ -218,6 +218,8 @@ export default function App() {
   const [tappedLoc, setTappedLoc] = useState(null)
   const [search, setSearch] = useState('')
   const [sessState, setSessState] = useState('idle')
+  const [showTimelapse, setShowTimelapse] = useState(false)
+  const [timelapseCenter, setTimelapseCenter] = useState(null)
   const [sessTime, setSessTime] = useState(0)
   const [curPos, setCurPos] = useState(null)
   const [route, setRoute] = useState([])
