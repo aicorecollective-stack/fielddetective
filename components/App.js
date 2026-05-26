@@ -4,6 +4,7 @@ import { MOCK_FINDS, MOCK_SESSIONS, MAP_LAYERS, CATEGORIES, RARITY } from './con
 import { getR, isAnc, fmtTime, haverD, callAI, exportGPX } from './helpers'
 
 const MapComponent = dynamic(() => import('./Map'), { ssr: false })
+const Timelapse   = dynamic(() => import('./Timelapse'), { ssr: false })
 
 // ─── TRANSLATIONS ─────────────────────────────────────────────────────────────
 const T = {
@@ -304,6 +305,11 @@ export default function App() {
         </div>
       )}
 
+      {/* Timelapse modal */}
+      {showTimelapse && timelapseCenter && (
+        <Timelapse center={timelapseCenter} onClose={()=>setShowTimelapse(false)}/>
+      )}
+
       {/* Top bar */}
       <div style={{background:'#020617',padding:'10px 20px 8px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid #1e293b',flexShrink:0}}>
         <div style={{color:'#d4a853',fontSize:'16px',fontWeight:'800',fontFamily:"'Playfair Display',serif",letterSpacing:'0.08em'}}>
@@ -377,10 +383,20 @@ export default function App() {
             {/* Controls */}
             <div style={{background:'#0f172a',borderTop:'1px solid #1e293b',padding:'12px 14px 16px',flexShrink:0}}>
               {sessState==='idle' ? (
-                <button onClick={()=>handleSession('start')}
-                  style={{width:'100%',background:'linear-gradient(135deg,#d4a853,#b8882f)',border:'none',color:'#0f172a',padding:'15px',borderRadius:'14px',fontWeight:'700',fontSize:'16px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'10px',boxShadow:'0 4px 20px rgba(212,168,83,0.35)'}}>
-                  <PlayIco/>{t.map_start}
-                </button>
+                <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                  <button onClick={()=>handleSession('start')}
+                    style={{width:'100%',background:'linear-gradient(135deg,#d4a853,#b8882f)',border:'none',color:'#0f172a',padding:'15px',borderRadius:'14px',fontWeight:'700',fontSize:'16px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'10px',boxShadow:'0 4px 20px rgba(212,168,83,0.35)'}}>
+                    <PlayIco/>{t.map_start}
+                  </button>
+                  <button onClick={()=>{
+                    const c = curPos || {lat:37.9838, lng:23.7275}
+                    setTimelapseCenter(c)
+                    setShowTimelapse(true)
+                  }}
+                    style={{width:'100%',background:'#1e293b',border:'1px solid #334155',color:'#94a3b8',padding:'12px',borderRadius:'12px',fontWeight:'600',fontSize:'14px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
+                    🎬 {lang==='el'?'Timelapse Περιοχής':'Area Timelapse'}
+                  </button>
+                </div>
               ) : (
                 <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
                   {sessState==='recording' && (
