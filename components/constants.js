@@ -35,12 +35,12 @@ export const MAP_LAYERS = [
     maxZoom: 13,
   },
   {
-    k: "natgeo",
-    emoji: "🌍",
-    label: { el: "Γεωγραφικός", en: "NatGeo Style" },
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}",
-    attribution: "© Esri, National Geographic",
-    maxZoom: 16,
+    k: "clarity",
+    emoji: "✈️",
+    label: { el: "Δορυφόρος HD", en: "Satellite HD" },
+    url: "https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: "© Esri World Imagery Clarity",
+    maxZoom: 20,
   },
   {
     k: "dark",
