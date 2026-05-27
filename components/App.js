@@ -373,8 +373,9 @@ export default function App() {
   const [tappedLoc, setTappedLoc] = useState(null)
   const [search, setSearch] = useState('')
   const [sessState, setSessState] = useState('idle')
-  const mapGetCenter = useRef(null)
-  const mapInstRef   = useRef(null)
+  const mapGetCenter  = useRef(null)
+  const mapInstRef    = useRef(null)
+  const [selectedFind, setSelectedFind] = useState(null)
   const [showWayback, setShowWayback] = useState(false)
   const [waybackUrl,  setWaybackUrl]  = useState('')
   const [sessTime, setSessTime] = useState(0)
@@ -446,6 +447,14 @@ export default function App() {
 
 
       {/* Modals */}
+      {selectedFind && (
+        <FindDetailModal
+          find={selectedFind}
+          lang={lang}
+          onClose={()=>setSelectedFind(null)}
+          onDelete={(id)=>{ setFinds(p=>p.filter(f=>f.id!==id)); setSelectedFind(null) }}
+        />
+      )}
       {ancAlert && <AncientAlert find={ancAlert} lang={lang} onClose={()=>setAncAlert(null)}/>}
       {showAdd && <AddFindModal lang={lang} sessions={sessions} currentPos={tappedLoc||curPos} onClose={()=>{setShowAdd(false);setTappedLoc(null)}} onAdd={addFind}/>}
       {sessDone && (
@@ -654,7 +663,7 @@ export default function App() {
               )})}
 
               {/* ALBUM VIEW — grouped by date */}
-              {viewMode==='album' && AlbumView({ filtered, setSelectedFind, getR })}
+              {viewMode==='album' && <AlbumView filtered={filtered} setSelectedFind={setSelectedFind} getR={getR}/>}
             </div>
 
             {/* FAB */}
