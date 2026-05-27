@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { MAP_LAYERS } from './constants'
 import { getR, isAnc } from './helpers'
 
-export default function MapComponent({ finds, currentPos, routePoints, layerIdx, onMapClick, tapMode, pickingArea, onAreaPicked, mapCenterRef }) {
+export default function MapComponent({ finds, currentPos, routePoints, layerIdx, onMapClick, tapMode, pickingArea, onAreaPicked, mapCenterRef, mapGetCenterRef }) {
   const divRef     = useRef(null)
   const mapRef     = useRef(null)   // leaflet map instance
   const tileRef    = useRef(null)   // current tile layer
@@ -47,12 +47,18 @@ export default function MapComponent({ finds, currentPos, routePoints, layerIdx,
 
       ;[100, 500, 1200].forEach(d => setTimeout(() => mapRef.current?.invalidateSize(), d))
 
-      // Expose current center to parent via ref
+      // Expose getCenter as a callable function — always returns latest value
+      if (mapGetCenterRef) {
+        mapGetCenterRef.current = () => {
+          const c = mapRef.current?.getCenter()
+          return c ? { lat: c.lat, lng: c.lng } : { lat: 37.9838, lng: 23.7275 }
+        }
+      }
+      // Also keep mapCenterRef updated
       const updateCenter = () => {
         const c = mapRef.current?.getCenter()
         if (c && mapCenterRef) mapCenterRef.current = { lat: c.lat, lng: c.lng }
       }
-      mapRef.current.on('move', updateCenter)
       mapRef.current.on('moveend', updateCenter)
       updateCenter()
 

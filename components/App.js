@@ -222,6 +222,7 @@ export default function App() {
   const [timelapseCenter, setTimelapseCenter] = useState(null)
   const [pickingArea, setPickingArea] = useState(false)
   const mapCenterRef = useRef({lat:37.9838, lng:23.7275})
+  const mapGetCenter = useRef(null)  // set by MapComponent
   const [sessTime, setSessTime] = useState(0)
   const [curPos, setCurPos] = useState(null)
   const [route, setRoute] = useState([])
@@ -327,11 +328,14 @@ export default function App() {
               style={{flex:1,background:'#1e293b',border:'1px solid #334155',color:'#94a3b8',padding:'14px',borderRadius:'12px',fontWeight:'700',fontSize:'15px',cursor:'pointer'}}>
               ✕ {lang==='el'?'Ακύρωση':'Cancel'}
             </button>
-            <button onClick={()=>{
-              const c = mapCenterRef.current
-              setTimelapseCenter(c)
+            <button onClick={(e)=>{
+              e.stopPropagation()
+              const c = mapGetCenter.current
+                ? mapGetCenter.current()
+                : mapCenterRef.current
+              setTimelapseCenter({lat: c.lat, lng: c.lng})
               setPickingArea(false)
-              setShowTimelapse(true)
+              setTimeout(()=>setShowTimelapse(true), 50)
             }}
               style={{flex:2,background:'linear-gradient(135deg,#6366f1,#4f46e5)',border:'none',color:'white',padding:'14px',borderRadius:'12px',fontWeight:'700',fontSize:'15px',cursor:'pointer',boxShadow:'0 4px 16px rgba(99,102,241,0.4)'}}>
               🎬 {lang==='el'?'Επιβεβαίωση Περιοχής':'Confirm Area'}
@@ -391,6 +395,7 @@ export default function App() {
                 tapMode={tapMode}
                 pickingArea={pickingArea}
                 mapCenterRef={mapCenterRef}
+                mapGetCenterRef={mapGetCenter}
               />
               {/* Tap banner */}
               {tapMode && (
