@@ -113,6 +113,45 @@ function AncientAlert({ find, lang, onClose }) {
   )
 }
 
+
+// ─── FIND DETAIL MODAL ─────────────────────────────────────────────────────
+function FindDetailModal({ find, lang, onClose, onDelete }) {
+  const rv = getR(find.rarity)
+  return (
+    <div style={{position:'fixed',inset:0,background:'#020617',zIndex:1200,overflowY:'auto'}}>
+      <div style={{maxWidth:'430px',margin:'0 auto',paddingBottom:'40px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:'12px',padding:'16px 20px',borderBottom:'1px solid #1e293b',background:'#020617',position:'sticky',top:0,zIndex:10}}>
+          <button onClick={onClose} style={{background:'#1e293b',border:'none',color:'#94a3b8',borderRadius:'50%',width:'36px',height:'36px',cursor:'pointer',fontSize:'18px',flexShrink:0}}>←</button>
+          <div style={{flex:1,minWidth:0}}>
+            <h2 style={{color:'#f8fafc',fontSize:'18px',fontFamily:"'Playfair Display',serif",margin:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{find.name}</h2>
+            <div style={{color:rv.color,fontSize:'12px',fontWeight:'600'}}>{rv.emoji} {T[lang].rar[rv.score-1]}</div>
+          </div>
+          <button onClick={()=>{onDelete(find.id);onClose()}} style={{background:'none',border:'none',color:'#475569',cursor:'pointer',fontSize:'20px',flexShrink:0}}>🗑️</button>
+        </div>
+        {find.photo
+          ? <img src={find.photo} alt={find.name} style={{width:'100%',maxHeight:'300px',objectFit:'cover',display:'block'}}/>
+          : <div style={{background:'#0f172a',padding:'48px',textAlign:'center',color:'#334155',fontSize:'48px'}}>📷</div>
+        }
+        <div style={{padding:'16px 20px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
+          {[['📂','Category',find.category],['📏','Depth',`${find.depth} cm`],['📅','Date',find.date],['⭐','Rarity',`${find.rarity}/5`]].map(([ic,lbl,v])=>(
+            <div key={lbl} style={{background:'#0f172a',borderRadius:'12px',padding:'12px',border:'1px solid #1e293b'}}>
+              <div style={{color:'#64748b',fontSize:'11px',marginBottom:'4px'}}>{ic} {lbl}</div>
+              <div style={{color:'#f8fafc',fontSize:'15px',fontWeight:'600'}}>{v}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{margin:'0 20px 10px',background:'#0f172a',borderRadius:'12px',padding:'12px 14px',border:'1px solid #1e293b'}}>
+          <div style={{color:'#64748b',fontSize:'11px',marginBottom:'4px'}}>📍 GPS</div>
+          <div style={{color:'#22c55e',fontSize:'13px',fontFamily:'monospace'}}>{find.lat?.toFixed(6)}°N, {find.lng?.toFixed(6)}°E</div>
+        </div>
+        {find.notes && <div style={{margin:'0 20px 10px',background:'#0f172a',borderRadius:'12px',padding:'14px',border:'1px solid #1e293b'}}><div style={{color:'#64748b',fontSize:'11px',marginBottom:'6px'}}>📝 Notes</div><div style={{color:'#e2e8f0',fontSize:'14px',lineHeight:'1.6'}}>{find.notes}</div></div>}
+        {find.aiResult && <div style={{margin:'0 20px 10px',background:'#0f172a',borderRadius:'12px',padding:'14px',border:'1px solid #d4a853'}}><div style={{color:'#d4a853',fontSize:'11px',marginBottom:'6px'}}>🤖 AI Analysis</div><div style={{color:'#e2e8f0',fontSize:'13px',lineHeight:'1.8',whiteSpace:'pre-line'}}>{find.aiResult}</div></div>}
+        {isAnc(find) && <div style={{margin:'0 20px 10px',background:'#f59e0b11',borderRadius:'12px',padding:'14px',border:'1px solid #f59e0b'}}><div style={{color:'#fbbf24',fontSize:'13px',fontWeight:'600',marginBottom:'4px'}}>⚠️ Possible Ancient Find</div><div style={{color:'#94a3b8',fontSize:'12px'}}>Law 3028/2002 · 213 214 9805</div></div>}
+      </div>
+    </div>
+  )
+}
+
 // ─── ADD FIND MODAL ───────────────────────────────────────────────────────────
 function AddFindModal({ lang, sessions, currentPos, onClose, onAdd }) {
   const t = T[lang]
@@ -124,19 +163,29 @@ function AddFindModal({ lang, sessions, currentPos, onClose, onAdd }) {
   const fileRef    = useRef(null)
   const galleryRef  = useRef(null)
 
+  const [aiError, setAiError] = useState(null)
+
   const analyzePhoto = async (b64, previewUrl) => {
     setPhotoB64(b64)
     setPhotoPreview(previewUrl)
     setAiLoading(true)
+    setAiError(null)
     try {
-      const r = await callAI(`Expert archaeologist. Metal detector find:\n1. Object name (4 words max)\n2. Period\n3. Material\n4. Rarity 1-5\n5. Ancient? yes/no\nBe concise.`, b64)
-      const nm = r.split('\n')[0].replace(/^[\d\.\:\-\*\s]+/,'').trim().substring(0,45)
-      if(nm) setForm(f=>({...f, name:nm, aiResult:r}))
-      const rm = r.match(/rarity.*?([1-5])/i)
-      if(rm) setForm(f=>({...f, rarity:parseInt(rm[1])}))
+      const r = await callAI(`You are an expert archaeologist. Analyze this metal detector find image and respond with exactly this format:
+Name: [object name, max 5 words]
+Period: [historical period]
+Material: [material]
+Rarity: [1-5]
+Ancient: [yes/no]
+Notes: [one brief sentence]`, b64)
+      if (r) {
+        const nm = (r.match(/Name:\s*(.+)/i)||[])[1]?.trim().substring(0,45)
+        if(nm) setForm(f=>({...f, name:nm, aiResult:r}))
+        const rm = (r.match(/Rarity:\s*([1-5])/i)||[])[1]
+        if(rm) setForm(f=>({...f, rarity:parseInt(rm)}))
+      }
     } catch(e) {
-      // AI failed but photo is saved — user can name it manually
-      console.warn('AI analysis failed:', e.message)
+      setAiError(e.message || 'AI analysis failed — enter details manually')
     }
     setAiLoading(false)
   }
@@ -210,7 +259,8 @@ function AddFindModal({ lang, sessions, currentPos, onClose, onAdd }) {
             </div>
           </div>
         )}
-        {form.aiResult && <div style={{background:'#1e293b',borderRadius:'10px',padding:'10px 14px',marginBottom:'14px',fontSize:'12px',color:'#94a3b8',borderLeft:'3px solid #d4a853'}}>🤖 {form.aiResult.substring(0,120)}...</div>}
+        {aiError && <div style={{background:'#ef444422',border:'1px solid #ef4444',borderRadius:'10px',padding:'10px 14px',marginBottom:'14px',fontSize:'12px',color:'#fca5a5'}}>⚠️ {aiError}</div>}
+        {form.aiResult && !aiError && <div style={{background:'#1e293b',borderRadius:'10px',padding:'10px 14px',marginBottom:'14px',fontSize:'12px',color:'#94a3b8',borderLeft:'3px solid #d4a853'}}><span style={{color:'#d4a853'}}>🤖 </span>{form.aiResult.substring(0,150)}...</div>}
         {[{lbl:t.add_name,ph:t.add_name_ph,k:'name',tp:'text'},{lbl:t.add_depth,ph:'e.g. 15',k:'depth',tp:'number'},{lbl:t.add_notes,ph:'...',k:'notes',tp:'text'}].map(({lbl,ph,k,tp})=>(
           <div key={k} style={{marginBottom:'12px'}}>
             <label style={{display:'block',color:'#64748b',fontSize:'12px',marginBottom:'5px'}}>{lbl}</label>
@@ -510,22 +560,60 @@ export default function App() {
               <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={t.finds_search}
                 style={{width:'100%',background:'#1e293b',border:'1px solid #334155',borderRadius:'10px',padding:'10px 12px 10px 34px',color:'#f8fafc',fontSize:'14px',boxSizing:'border-box'}}/>
             </div>
-            <div style={{padding:'0 20px 100px'}}>
+            {/* Toggle: List / Album */}
+      <div style={{display:'flex',gap:'8px',padding:'0 20px 12px'}}>
+        {['list','album'].map(v=>(
+          <button key={v} onClick={()=>setViewMode(v)}
+            style={{flex:1,background:viewMode===v?'#d4a853':'#1e293b',border:'none',color:viewMode===v?'#0f172a':'#64748b',padding:'8px',borderRadius:'8px',cursor:'pointer',fontWeight:viewMode===v?'700':'400',fontSize:'13px'}}>
+            {v==='list'?(lang==='el'?'📋 Λίστα':'📋 List'):(lang==='el'?'📸 Άλμπουμ':'📸 Album')}
+          </button>
+        ))}
+      </div>
+      <div style={{padding:'0 20px 100px'}}>
               {filtered.length===0 && <div style={{textAlign:'center',padding:'40px',color:'#475569'}}>{t.finds_empty}</div>}
-              {filtered.map(f=>{ const rv=getR(f.rarity); const anc=isAnc(f); return (
-                <div key={f.id} style={{background:'#0f172a',border:`1px solid ${anc?'#f59e0b44':rv.color+'33'}`,borderRadius:'14px',padding:'13px 15px',marginBottom:'9px',display:'flex',alignItems:'center',gap:'13px',position:'relative'}}>
-                  {anc&&<span style={{position:'absolute',top:'8px',right:'38px'}}>⚠️</span>}
+
+              {/* LIST VIEW */}
+              {viewMode==='list' && filtered.map(f=>{ const rv=getR(f.rarity); const anc=isAnc(f); return (
+                <div key={f.id} onClick={()=>setSelectedFind(f)} style={{background:'#0f172a',border:`1px solid ${anc?'#f59e0b44':rv.color+'33'}`,borderRadius:'14px',padding:'13px 15px',marginBottom:'9px',display:'flex',alignItems:'center',gap:'13px',cursor:'pointer',position:'relative'}}>
+                  {anc&&<span style={{position:'absolute',top:'8px',right:'44px'}}>⚠️</span>}
                   <div style={{width:'42px',height:'42px',borderRadius:'50%',background:rv.color+'22',border:`2px solid ${rv.color}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'19px',flexShrink:0}}>{rv.emoji}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{color:'#f8fafc',fontSize:'15px',fontWeight:'600',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.name}</div>
                     <div style={{color:'#64748b',fontSize:'12px'}}>{f.category} · {f.depth}cm · {f.date}</div>
                     {f.aiResult&&<div style={{color:'#d4a853',fontSize:'11px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>🤖 {f.aiResult.substring(0,55)}...</div>}
                   </div>
-                  <button onClick={()=>setFinds(p=>p.filter(x=>x.id!==f.id))} style={{background:'none',border:'none',color:'#475569',cursor:'pointer'}}><TrashIco/></button>
+                  {f.photo && <img src={f.photo} alt="" style={{width:'48px',height:'48px',objectFit:'cover',borderRadius:'8px',flexShrink:0,border:'1px solid #334155'}}/>}
                 </div>
               )})}
-            </div>
-            <button onClick={()=>setShowAdd(true)}
+
+              {/* ALBUM VIEW — grouped by date */}
+              {viewMode==='album' && (() => {
+                const byDate = {}
+                filtered.forEach(f => { if(!byDate[f.date]) byDate[f.date]=[]; byDate[f.date].push(f) })
+                return Object.entries(byDate).sort(([a],[b])=>b.localeCompare(a)).map(([date,dayFinds])=>(
+                  <div key={date} style={{marginBottom:'24px'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px'}}>
+                      <div style={{color:'#d4a853',fontSize:'13px',fontWeight:'700'}}>📅 {date}</div>
+                      <div style={{flex:1,height:'1px',background:'#1e293b'}}/>
+                      <div style={{color:'#475569',fontSize:'12px'}}>{dayFinds.length} finds</div>
+                    </div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
+                      {dayFinds.map(f=>{ const rv=getR(f.rarity); return (
+                        <div key={f.id} onClick={()=>setSelectedFind(f)} style={{background:'#0f172a',borderRadius:'12px',overflow:'hidden',border:`1px solid ${rv.color}33`,cursor:'pointer'}}>
+                          {f.photo
+                            ? <img src={f.photo} alt={f.name} style={{width:'100%',height:'110px',objectFit:'cover',display:'block'}}/>
+                            : <div style={{width:'100%',height:'110px',background:'#1e293b',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'36px'}}>{rv.emoji}</div>
+                          }
+                          <div style={{padding:'8px 10px'}}>
+                            <div style={{color:'#f8fafc',fontSize:'13px',fontWeight:'600',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.name}</div>
+                            <div style={{color:'#64748b',fontSize:'11px'}}>{f.category} · {f.depth}cm</div>
+                          </div>
+                        </div>
+                      )})}
+                    </div>
+                  </div>
+                ))
+              })()}
               style={{position:'fixed',bottom:'90px',right:'20px',width:'58px',height:'58px',borderRadius:'50%',background:'#d4a853',border:'none',cursor:'pointer',boxShadow:'0 4px 24px rgba(212,168,83,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50}}>
               <PlusIco/>
             </button>
