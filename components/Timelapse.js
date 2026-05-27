@@ -72,10 +72,21 @@ export default function Timelapse({ center, onClose }) {
     const z  = zoom
     const cx = lon2tile(center.lng, z)
     const cy = lat2tile(center.lat, z)
-    fetch(`/api/wayback?action=releases&z=${z}&y=${cy}&x=${cx}`)
+    fetch('/api/wayback?action=releases')
       .then(r => r.json())
-      .then(data => {
-        const items = (data.items || []).filter(r => r.release && r.date)
+      .then(async data => {
+        const raw = (data.items || []).filter(r => r.release && r.date)
+        // Probe the center tile to see which releases actually have data here
+        const probeResults = await Promise.all(
+          raw.map(r =>
+            fetch(`/api/wayback?action=probe&release=${r.release}&z=${z}&y=${cy}&x=${cx}`)
+              .then(res => res.json())
+              .then(p => ({ ...r, hasData: p.ok && parseInt(p.size||0) > 5000 }))
+              .catch(() => ({ ...r, hasData: false }))
+          )
+        )
+        const valid = probeResults.filter(r => r.hasData)
+        const items = valid.length > 0 ? valid : raw  // fallback: show all if probe fails
         setReleases(items)
         setSelected(items.map(r => r.release))
       })

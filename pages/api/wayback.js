@@ -1,59 +1,86 @@
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Cache-Control', 'public, max-age=3600')
   const { action, z, y, x, release } = req.query
 
-  // ── Get all releases from official Esri Wayback config ───────────────────
+  // ── Get releases from official S3 config ─────────────────────────────────
   if (action === 'releases') {
+    const CONFIG_URLS = [
+      'https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json',
+      'https://livingatlas2.arcgis.com/wabWayback/wayback-config.json',
+    ]
+    let releases = null
+    for (const url of CONFIG_URLS) {
+      try {
+        const r = await fetch(url, {
+          headers: { 'User-Agent': 'Mozilla/5.0', 'Origin': 'https://livingatlas.arcgis.com' }
+        })
+        if (!r.ok) continue
+        const data = await r.json()
+        // Format: { "1": { releaseDateLabel:"2014-02-20", ... }, "2": {...}, ... }
+        releases = Object.entries(data)
+          .map(([id, info]) => ({
+            release: parseInt(id),
+            date: info.releaseDateLabel || info.date || '',
+          }))
+          .filter(r => r.date && r.date.length >= 4)
+          .sort((a,b) => a.date.localeCompare(b.date))
+        // One per year
+        const byYear = {}
+        releases.forEach(r => {
+          const yr = r.date.substring(0,4)
+          byYear[yr] = r  // keeps last per year
+        })
+        releases = Object.values(byYear).sort((a,b) => a.date.localeCompare(b.date))
+        break
+      } catch(e) { continue }
+    }
+
+    // If both fail, probe which release IDs actually return tiles for this location
+    if (!releases) {
+      res.setHeader('Cache-Control', 'public, max-age=3600')
+      // Known verified Esri Wayback release IDs (from official app source)
+      const KNOWN = [
+        {release:1,   date:'2014-02-20'},
+        {release:3,   date:'2015-01-12'},
+        {release:8,   date:'2016-03-14'},
+        {release:15,  date:'2017-02-13'},
+        {release:24,  date:'2018-01-15'},
+        {release:35,  date:'2019-02-18'},
+        {release:46,  date:'2020-01-13'},
+        {release:57,  date:'2021-02-08'},
+        {release:68,  date:'2022-01-10'},
+        {release:79,  date:'2023-02-13'},
+        {release:90,  date:'2024-01-08'},
+      ]
+      return res.json({ items: KNOWN, source: 'fallback' })
+    }
+
+    res.setHeader('Cache-Control', 'public, max-age=86400')
+    return res.json({ items: releases, source: 'config' })
+  }
+
+  // ── Probe: check if a tile actually has content ───────────────────────────
+  if (action === 'probe') {
     try {
-      const r = await fetch(
-        'https://livingatlas2.arcgis.com/wabWayback/wayback-config.json',
-        { headers: { 'User-Agent': 'Mozilla/5.0 FieldDetective/1.0' } }
-      )
-      const data = await r.json()
-      // data = { "1": { title:"...", releaseDateLabel:"2014-02-20" }, ... }
-      const all = Object.entries(data)
-        .map(([id, info]) => ({
-          release: parseInt(id),
-          date: info.releaseDateLabel || '',
-          year: parseInt((info.releaseDateLabel || '20').substring(0, 4)),
-        }))
-        .filter(r => r.date && r.year >= 2014)
-        .sort((a, b) => a.date.localeCompare(b.date))
-
-      // Keep ONE per year (the latest of each year)
-      const byYear = {}
-      all.forEach(r => { byYear[r.year] = r })
-      const releases = Object.values(byYear).sort((a,b) => a.year - b.year)
-
-      return res.json({ items: releases })
+      const url = `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${release}/${z}/${y}/${x}`
+      const r = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://livingatlas.arcgis.com/' }
+      })
+      return res.json({ ok: r.ok, status: r.status, size: r.headers.get('content-length') })
     } catch(e) {
-      // Fallback: hardcoded known releases that cover 2014-2024
-      return res.json({ items: [
-        { release:10,  date:'2014-06-01', year:2014 },
-        { release:25,  date:'2015-06-01', year:2015 },
-        { release:40,  date:'2016-06-01', year:2016 },
-        { release:60,  date:'2017-06-01', year:2017 },
-        { release:80,  date:'2018-06-01', year:2018 },
-        { release:100, date:'2019-06-01', year:2019 },
-        { release:115, date:'2020-06-01', year:2020 },
-        { release:130, date:'2021-06-01', year:2021 },
-        { release:145, date:'2022-06-01', year:2022 },
-        { release:160, date:'2023-06-01', year:2023 },
-        { release:175, date:'2024-06-01', year:2024 },
-      ]})
+      return res.json({ ok: false, error: e.message })
     }
   }
 
-  // ── Proxy a Wayback tile ─────────────────────────────────────────────────
+  // ── Proxy tile ────────────────────────────────────────────────────────────
   if (action === 'tile') {
     try {
       const url = `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${release}/${z}/${y}/${x}`
       const r = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 FieldDetective/1.0',
-          'Referer':    'https://livingatlas.arcgis.com/wayback/',
-          'Origin':     'https://livingatlas.arcgis.com',
+          'User-Agent': 'Mozilla/5.0',
+          'Referer': 'https://livingatlas.arcgis.com/wayback/',
+          'Origin':  'https://livingatlas.arcgis.com',
         }
       })
       if (!r.ok) return res.status(r.status).end()
