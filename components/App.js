@@ -117,11 +117,16 @@ function AncientAlert({ find, lang, onClose }) {
 function AddFindModal({ lang, sessions, currentPos, onClose, onAdd }) {
   const t = T[lang]
   const [form, setForm] = useState({ name:'', category:'Coin', depth:'', notes:'', rarity:1, sessionId:sessions[0]?.id||1, aiResult:'' })
+  const [photoB64, setPhotoB64] = useState(null)
+  const [photoPreview, setPhotoPreview] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [done, setDone] = useState(false)
-  const fileRef = useRef(null)
+  const fileRef    = useRef(null)
+  const galleryRef  = useRef(null)
 
-  const analyzePhoto = async (b64) => {
+  const analyzePhoto = async (b64, previewUrl) => {
+    setPhotoB64(b64)
+    setPhotoPreview(previewUrl)
     setAiLoading(true)
     try {
       const r = await callAI(`Expert archaeologist. Metal detector find:\n1. Object name (4 words max)\n2. Period\n3. Material\n4. Rarity 1-5\n5. Ancient? yes/no\nBe concise.`, b64)
@@ -129,14 +134,20 @@ function AddFindModal({ lang, sessions, currentPos, onClose, onAdd }) {
       if(nm) setForm(f=>({...f, name:nm, aiResult:r}))
       const rm = r.match(/rarity.*?([1-5])/i)
       if(rm) setForm(f=>({...f, rarity:parseInt(rm[1])}))
-    } catch(e) {}
+    } catch(e) {
+      // AI failed but photo is saved — user can name it manually
+      console.warn('AI analysis failed:', e.message)
+    }
     setAiLoading(false)
   }
 
   const handleFile = (e) => {
     const file = e.target.files[0]; if(!file) return
     const reader = new FileReader()
-    reader.onload = (ev) => analyzePhoto(ev.target.result.split(',')[1])
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result
+      analyzePhoto(dataUrl.split(',')[1], dataUrl)
+    }
     reader.readAsDataURL(file)
   }
 
@@ -145,7 +156,8 @@ function AddFindModal({ lang, sessions, currentPos, onClose, onAdd }) {
     onAdd({ ...form, id:Date.now(), depth:parseInt(form.depth)||0,
       lat: currentPos?.lat||(37.984+(Math.random()-0.5)*0.01),
       lng: currentPos?.lng||(23.728+(Math.random()-0.5)*0.01),
-      date: new Date().toISOString().split('T')[0]
+      date: new Date().toISOString().split('T')[0],
+      photo: photoPreview || null,
     })
     setDone(true); setTimeout(onClose, 600)
   }
@@ -167,10 +179,31 @@ function AddFindModal({ lang, sessions, currentPos, onClose, onAdd }) {
           <button onClick={onClose} style={{background:'#1e293b',border:'none',color:'#94a3b8',borderRadius:'50%',width:'32px',height:'32px',cursor:'pointer',fontSize:'18px'}}>×</button>
         </div>
         {currentPos && <div style={{background:'#1e293b',borderRadius:'10px',padding:'8px 14px',marginBottom:'14px',fontSize:'12px',color:'#22c55e'}}>📍 GPS: {currentPos.lat.toFixed(5)}, {currentPos.lng.toFixed(5)}</div>}
-        <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{display:'none'}}/>
-        <button onClick={()=>fileRef.current.click()} style={{width:'100%',background:'linear-gradient(135deg,#1e293b,#0f172a)',border:'1px solid #d4a853',color:'#d4a853',padding:'13px',borderRadius:'12px',fontSize:'14px',fontWeight:'600',cursor:'pointer',marginBottom:'16px',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
-          {aiLoading ? <><span style={{animation:'spin 1s linear infinite',display:'inline-block'}}>⟳</span> {t.ai_analyzing}</> : t.add_ai}
-        </button>
+        {/* Camera input — opens camera directly */}
+        <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{position:'absolute',opacity:0,pointerEvents:'none',width:'1px',height:'1px'}}/>
+        {/* Gallery input — opens file picker */}
+        <input ref={galleryRef} type="file" accept="image/*" onChange={handleFile} style={{position:'absolute',opacity:0,pointerEvents:'none',width:'1px',height:'1px'}}/>
+
+        {aiLoading ? (
+          <div style={{width:'100%',background:'#1e293b',borderRadius:'12px',padding:'16px',marginBottom:'16px',display:'flex',alignItems:'center',justifyContent:'center',gap:'10px'}}>
+            <span style={{animation:'spin 1s linear infinite',display:'inline-block',fontSize:'18px'}}>⟳</span>
+            <span style={{color:'#d4a853',fontWeight:'600',fontSize:'14px'}}>{t.ai_analyzing}</span>
+          </div>
+        ) : !photoPreview ? (
+          <div style={{marginBottom:'16px'}}>
+            <p style={{color:'#64748b',fontSize:'12px',marginBottom:'10px',textAlign:'center'}}>{lang==='el'?'Φωτογράφισε για AI αναγνώριση (προαιρετικό)':'Photograph for AI recognition (optional)'}</p>
+            <div style={{display:'flex',gap:'10px'}}>
+              <button onClick={()=>fileRef.current.click()}
+                style={{flex:1,background:'linear-gradient(135deg,#1e293b,#0f172a)',border:'1px solid #d4a853',color:'#d4a853',padding:'12px',borderRadius:'12px',fontSize:'13px',fontWeight:'600',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
+                📷 {lang==='el'?'Κάμερα':'Camera'}
+              </button>
+              <button onClick={()=>galleryRef.current.click()}
+                style={{flex:1,background:'linear-gradient(135deg,#1e293b,#0f172a)',border:'1px solid #334155',color:'#94a3b8',padding:'12px',borderRadius:'12px',fontSize:'13px',fontWeight:'600',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
+                🖼️ {lang==='el'?'Συλλογή':'Gallery'}
+              </button>
+            </div>
+          </div>
+        ) : null}
         {form.aiResult && <div style={{background:'#1e293b',borderRadius:'10px',padding:'10px 14px',marginBottom:'14px',fontSize:'12px',color:'#94a3b8',borderLeft:'3px solid #d4a853'}}>🤖 {form.aiResult.substring(0,120)}...</div>}
         {[{lbl:t.add_name,ph:t.add_name_ph,k:'name',tp:'text'},{lbl:t.add_depth,ph:'e.g. 15',k:'depth',tp:'number'},{lbl:t.add_notes,ph:'...',k:'notes',tp:'text'}].map(({lbl,ph,k,tp})=>(
           <div key={k} style={{marginBottom:'12px'}}>
