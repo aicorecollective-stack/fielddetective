@@ -10,6 +10,12 @@ export default function MapComponent({ finds, currentPos, routePoints, layerIdx,
   const routePLRef = useRef(null)
   const posMarkRef = useRef(null)
   const [ready, setReady] = useState(false)
+  const onMapClickRef = useRef(onMapClick)
+  const tapModeRef    = useRef(tapMode)
+
+  // ── Sync latest callbacks to refs so Leaflet closure always sees current values
+  useEffect(() => { onMapClickRef.current = onMapClick }, [onMapClick])
+  useEffect(() => { tapModeRef.current    = tapMode    }, [tapMode])
 
   // ── 1. Load Leaflet + init map ─────────────────────────────────────────────
   useEffect(() => {
@@ -32,7 +38,10 @@ export default function MapComponent({ finds, currentPos, routePoints, layerIdx,
       // Don't add tile here — the switch effect handles it once ready=true
 
       mapRef.current.on('click', e => {
-        if (onMapClick) onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng })
+        // Always read latest values from refs — avoids stale closure
+        if (onMapClickRef.current) {
+          onMapClickRef.current({ lat: e.latlng.lat, lng: e.latlng.lng })
+        }
       })
 
       ;[100, 500, 1200].forEach(d => setTimeout(() => mapRef.current?.invalidateSize(), d))
