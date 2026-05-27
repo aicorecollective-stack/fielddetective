@@ -293,6 +293,42 @@ Notes: [one brief sentence]`, b64)
 }
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
+
+// ─── ALBUM VIEW HELPER ────────────────────────────────────────────────────────
+function AlbumView({ filtered, setSelectedFind, getR }) {
+  const byDate = {}
+  filtered.forEach(f => { if(!byDate[f.date]) byDate[f.date]=[]; byDate[f.date].push(f) })
+  const sorted = Object.entries(byDate).sort(([a],[b])=>b.localeCompare(a))
+  if (sorted.length===0) return null
+  return sorted.map(([date, dayFinds]) => (
+    <div key={date} style={{marginBottom:'24px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px'}}>
+        <div style={{color:'#d4a853',fontSize:'13px',fontWeight:'700'}}>📅 {date}</div>
+        <div style={{flex:1,height:'1px',background:'#1e293b'}}/>
+        <div style={{color:'#475569',fontSize:'12px'}}>{dayFinds.length} finds</div>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
+        {dayFinds.map(f => {
+          const rv = getR(f.rarity)
+          return (
+            <div key={f.id} onClick={()=>setSelectedFind(f)}
+              style={{background:'#0f172a',borderRadius:'12px',overflow:'hidden',border:`1px solid ${rv.color}33`,cursor:'pointer'}}>
+              {f.photo
+                ? <img src={f.photo} alt={f.name} style={{width:'100%',height:'110px',objectFit:'cover',display:'block'}}/>
+                : <div style={{width:'100%',height:'110px',background:'#1e293b',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'36px'}}>{rv.emoji}</div>
+              }
+              <div style={{padding:'8px 10px'}}>
+                <div style={{color:'#f8fafc',fontSize:'13px',fontWeight:'600',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.name}</div>
+                <div style={{color:'#64748b',fontSize:'11px'}}>{f.category} · {f.depth}cm</div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  ))
+}
+
 export default function App() {
   const [lang, setLang] = useState('el')
   const [gdpr, setGdpr] = useState(false)
@@ -587,33 +623,11 @@ export default function App() {
               )})}
 
               {/* ALBUM VIEW — grouped by date */}
-              {viewMode==='album' && (() => {
-                const byDate = {}
-                filtered.forEach(f => { if(!byDate[f.date]) byDate[f.date]=[]; byDate[f.date].push(f) })
-                return Object.entries(byDate).sort(([a],[b])=>b.localeCompare(a)).map(([date,dayFinds])=>(
-                  <div key={date} style={{marginBottom:'24px'}}>
-                    <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px'}}>
-                      <div style={{color:'#d4a853',fontSize:'13px',fontWeight:'700'}}>📅 {date}</div>
-                      <div style={{flex:1,height:'1px',background:'#1e293b'}}/>
-                      <div style={{color:'#475569',fontSize:'12px'}}>{dayFinds.length} finds</div>
-                    </div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
-                      {dayFinds.map(f=>{ const rv=getR(f.rarity); return (
-                        <div key={f.id} onClick={()=>setSelectedFind(f)} style={{background:'#0f172a',borderRadius:'12px',overflow:'hidden',border:`1px solid ${rv.color}33`,cursor:'pointer'}}>
-                          {f.photo
-                            ? <img src={f.photo} alt={f.name} style={{width:'100%',height:'110px',objectFit:'cover',display:'block'}}/>
-                            : <div style={{width:'100%',height:'110px',background:'#1e293b',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'36px'}}>{rv.emoji}</div>
-                          }
-                          <div style={{padding:'8px 10px'}}>
-                            <div style={{color:'#f8fafc',fontSize:'13px',fontWeight:'600',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.name}</div>
-                            <div style={{color:'#64748b',fontSize:'11px'}}>{f.category} · {f.depth}cm</div>
-                          </div>
-                        </div>
-                      )})}
-                    </div>
-                  </div>
-                ))
-              })()}
+              {viewMode==='album' && AlbumView({ filtered, setSelectedFind, getR })}
+            </div>
+
+            {/* FAB */}
+            <button onClick={()=>setShowAdd(true)}
               style={{position:'fixed',bottom:'90px',right:'20px',width:'58px',height:'58px',borderRadius:'50%',background:'#d4a853',border:'none',cursor:'pointer',boxShadow:'0 4px 24px rgba(212,168,83,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50}}>
               <PlusIco/>
             </button>
