@@ -165,27 +165,55 @@ function AddFindModal({ lang, sessions, currentPos, onClose, onAdd }) {
 
   const [aiError, setAiError] = useState(null)
 
+  const compressImage = (b64, maxW=800) => new Promise(resolve => {
+    const img = new Image()
+    img.onload = () => {
+      const scale = Math.min(1, maxW / Math.max(img.width, img.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width * scale
+      canvas.height = img.height * scale
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/jpeg', 0.7).split(',')[1])
+    }
+    img.onerror = () => resolve(b64)  // fallback: use original
+    img.src = 'data:image/jpeg;base64,' + b64
+  })
+
   const analyzePhoto = async (b64, previewUrl) => {
     setPhotoB64(b64)
     setPhotoPreview(previewUrl)
     setAiLoading(true)
     setAiError(null)
     try {
-      const r = await callAI(`You are an expert archaeologist. Analyze this metal detector find image and respond with exactly this format:
+      // Compress before sending to reduce payload size
+      const compressed = await compressImage(b64)
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `You are an expert archaeologist. Analyze this metal detector find image. Respond in EXACTLY this format:
 Name: [object name, max 5 words]
 Period: [historical period]
 Material: [material]
 Rarity: [1-5]
-Ancient: [yes/no]
-Notes: [one brief sentence]`, b64)
+Ancient: [yes or no]
+Notes: [one sentence]`,
+          imageBase64: compressed,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+      const r = data.text || ''
       if (r) {
         const nm = (r.match(/Name:\s*(.+)/i)||[])[1]?.trim().substring(0,45)
-        if(nm) setForm(f=>({...f, name:nm, aiResult:r}))
         const rm = (r.match(/Rarity:\s*([1-5])/i)||[])[1]
-        if(rm) setForm(f=>({...f, rarity:parseInt(rm)}))
+        const upd = { aiResult: r }
+        if(nm) upd.name = nm
+        if(rm) upd.rarity = parseInt(rm)
+        setForm(f=>({...f, ...upd}))
       }
     } catch(e) {
-      setAiError(e.message || 'AI analysis failed — enter details manually')
+      setAiError(e.message || 'AI analysis failed')
     }
     setAiLoading(false)
   }
@@ -194,10 +222,13 @@ Notes: [one brief sentence]`, b64)
     const file = e.target.files[0]; if(!file) return
     const reader = new FileReader()
     reader.onload = (ev) => {
-      const dataUrl = ev.target.result
-      analyzePhoto(dataUrl.split(',')[1], dataUrl)
+      const dataUrl = ev.target.result          // full data:image/jpeg;base64,...
+      const b64 = dataUrl.split(',')[1]         // just the base64 part
+      analyzePhoto(b64, dataUrl)                // use dataUrl as preview (stable)
     }
+    reader.onerror = () => { setAiLoading(false); setAiError('Failed to read image') }
     reader.readAsDataURL(file)
+    // Note: readAsDataURL gives full base64 — we compress in analyzePhoto
   }
 
   const save = () => {
