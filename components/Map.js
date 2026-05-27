@@ -29,13 +29,7 @@ export default function MapComponent({ finds, currentPos, routePoints, layerIdx,
       const center = currentPos ? [currentPos.lat, currentPos.lng] : [37.9838, 23.7275]
       mapRef.current = L.map(divRef.current, { zoomControl: true }).setView(center, 14)
 
-      // Add initial tile layer (index 0 = street)
-      const cfg = MAP_LAYERS[0]
-      tileRef.current = L.tileLayer(cfg.url, {
-        attribution: cfg.attribution,
-        maxZoom: cfg.maxZoom || 18,
-        ...(cfg.subdomains ? { subdomains: cfg.subdomains } : {}),
-      }).addTo(mapRef.current)
+      // Don't add tile here — the switch effect handles it once ready=true
 
       mapRef.current.on('click', e => {
         if (onMapClick) onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng })
@@ -53,13 +47,7 @@ export default function MapComponent({ finds, currentPos, routePoints, layerIdx,
           return c ? { lat: c.lat, lng: c.lng } : { lat: 37.9838, lng: 23.7275 }
         }
       }
-      // Also keep mapCenterRef updated
-      const updateCenter = () => {
-        const c = mapRef.current?.getCenter()
-        if (c && mapCenterRef) mapCenterRef.current = { lat: c.lat, lng: c.lng }
-      }
-      mapRef.current.on('moveend', updateCenter)
-      updateCenter()
+
 
       setReady(true)  // ← this makes layer effect re-run with correct state
     })
