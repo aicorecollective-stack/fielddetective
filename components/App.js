@@ -219,6 +219,8 @@ export default function App() {
   const [sessState, setSessState] = useState('idle')
   const mapGetCenter = useRef(null)
   const mapInstRef   = useRef(null)
+  const [showWayback, setShowWayback] = useState(false)
+  const [waybackUrl,  setWaybackUrl]  = useState('')
   const [sessTime, setSessTime] = useState(0)
   const [curPos, setCurPos] = useState(null)
   const [route, setRoute] = useState([])
@@ -308,6 +310,41 @@ export default function App() {
 
       
 
+      {/* Wayback Timelapse Modal — fullscreen iframe */}
+      {showWayback && (
+        <div style={{position:'fixed',inset:0,zIndex:900,background:'#020617',display:'flex',flexDirection:'column'}}>
+          {/* Header */}
+          <div style={{background:'#0f172a',borderBottom:'1px solid #1e293b',padding:'10px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+            <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+              <span style={{fontSize:'18px'}}>🎬</span>
+              <div>
+                <div style={{color:'#f8fafc',fontSize:'15px',fontWeight:'700',fontFamily:"'Playfair Display',serif"}}>Wayback Timelapse</div>
+                <div style={{color:'#64748b',fontSize:'11px'}}>{lang==='el'?'Εξερεύνηση ιστορικών δορυφορικών εικόνων':'Explore historical satellite imagery'}</div>
+              </div>
+            </div>
+            <button onClick={()=>setShowWayback(false)}
+              style={{background:'#1e293b',border:'none',color:'#94a3b8',borderRadius:'50%',width:'36px',height:'36px',cursor:'pointer',fontSize:'20px',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              ×
+            </button>
+          </div>
+          {/* iframe */}
+          <iframe
+            src={waybackUrl}
+            style={{flex:1,border:'none',width:'100%'}}
+            allow="geolocation"
+            title="Esri Wayback"
+          />
+          {/* Footer tip */}
+          <div style={{background:'#0f172a',borderTop:'1px solid #1e293b',padding:'8px 16px',flexShrink:0}}>
+            <p style={{color:'#475569',fontSize:'11px',margin:0,textAlign:'center'}}>
+              {lang==='el'
+                ? '📅 Επίλεξε χρονιά → σύγκρινε αλλαγές στην περιοχή σου'
+                : '📅 Select a year → compare changes in your area'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Top bar */}
       <div style={{background:'#020617',padding:'10px 20px 8px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid #1e293b',flexShrink:0}}>
         <div style={{color:'#d4a853',fontSize:'16px',fontWeight:'800',fontFamily:"'Playfair Display',serif",letterSpacing:'0.08em'}}>
@@ -389,17 +426,15 @@ export default function App() {
                     <PlayIco/>{t.map_start}
                   </button>
                   <button onClick={()=>{
-                    const fn = mapGetCenter.current
-                    const c  = fn ? fn() : {lat:37.9838,lng:23.7275}
+                    const fn   = mapGetCenter.current
+                    const c    = fn ? fn() : {lat:37.9838,lng:23.7275}
                     const inst = mapInstRef.current
-                    const z  = inst ? inst.getZoom() : 15
-                    window.open(
-                      `https://livingatlas.arcgis.com/wayback/#mapCenter=${c.lng.toFixed(5)}%2C${c.lat.toFixed(5)}%2C${z}&mode=explore`,
-                      '_blank'
-                    )
+                    const z    = inst ? inst.getZoom() : 15
+                    setWaybackUrl(`https://livingatlas.arcgis.com/wayback/#mapCenter=${c.lng.toFixed(5)}%2C${c.lat.toFixed(5)}%2C${z}&mode=explore`)
+                    setShowWayback(true)
                   }}
                     style={{width:'100%',background:'#1e293b',border:'1px solid #6366f1',color:'#818cf8',padding:'12px',borderRadius:'12px',fontWeight:'600',fontSize:'14px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
-                    🎬 {lang==='el'?'Wayback Timelapse ↗':'Wayback Timelapse ↗'}
+                    🎬 {lang==='el'?'Wayback Timelapse':'Wayback Timelapse'}
                   </button>
                 </div>
               ) : (
