@@ -30,7 +30,7 @@ const buildFrame = async (release, z, cx, cy, label) => {
   await Promise.all(
     Array.from({length:GRID}, (_,dy) =>
       Array.from({length:GRID}, (_,dx) =>
-        loadImg(`/api/wayback?action=tile&release=${release}&z=${z}&y=${cy+dy-half}&x=${cx+dx-half}`)
+        loadImg(`https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${release}/${z}/${cy+dy-half}/${cx+dx-half}`)
           .then(img => { if(img) ctx.drawImage(img, dx*TILE_SZ, dy*TILE_SZ, TILE_SZ, TILE_SZ) })
       )
     ).flat()
