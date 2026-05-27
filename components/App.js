@@ -152,7 +152,7 @@ function AddFindModal({ lang, sessions, currentPos, onClose, onAdd }) {
   }
 
   const save = () => {
-    if(!form.name) return
+    if(!form.name) { alert(lang==='el'?'Βάλε όνομα ευρήματος':'Enter a find name'); return }
     onAdd({ ...form, id:Date.now(), depth:parseInt(form.depth)||0,
       lat: currentPos?.lat||(37.984+(Math.random()-0.5)*0.01),
       lng: currentPos?.lng||(23.728+(Math.random()-0.5)*0.01),
@@ -179,31 +179,37 @@ function AddFindModal({ lang, sessions, currentPos, onClose, onAdd }) {
           <button onClick={onClose} style={{background:'#1e293b',border:'none',color:'#94a3b8',borderRadius:'50%',width:'32px',height:'32px',cursor:'pointer',fontSize:'18px'}}>×</button>
         </div>
         {currentPos && <div style={{background:'#1e293b',borderRadius:'10px',padding:'8px 14px',marginBottom:'14px',fontSize:'12px',color:'#22c55e'}}>📍 GPS: {currentPos.lat.toFixed(5)}, {currentPos.lng.toFixed(5)}</div>}
-        {/* Camera input — opens camera directly */}
-        <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{position:'absolute',opacity:0,pointerEvents:'none',width:'1px',height:'1px'}}/>
-        {/* Gallery input — opens file picker */}
-        <input ref={galleryRef} type="file" accept="image/*" onChange={handleFile} style={{position:'absolute',opacity:0,pointerEvents:'none',width:'1px',height:'1px'}}/>
-
+        {/* Photo section — label-based triggers (most reliable on all mobile browsers) */}
         {aiLoading ? (
-          <div style={{width:'100%',background:'#1e293b',borderRadius:'12px',padding:'16px',marginBottom:'16px',display:'flex',alignItems:'center',justifyContent:'center',gap:'10px'}}>
-            <span style={{animation:'spin 1s linear infinite',display:'inline-block',fontSize:'18px'}}>⟳</span>
+          <div style={{background:'#1e293b',borderRadius:'12px',padding:'16px',marginBottom:'16px',display:'flex',alignItems:'center',justifyContent:'center',gap:'10px'}}>
+            <span style={{animation:'spin 1s linear infinite',display:'inline-block',fontSize:'20px'}}>⟳</span>
             <span style={{color:'#d4a853',fontWeight:'600',fontSize:'14px'}}>{t.ai_analyzing}</span>
           </div>
-        ) : !photoPreview ? (
+        ) : photoPreview ? (
+          <div style={{position:'relative',marginBottom:'14px'}}>
+            <img src={photoPreview} alt="" style={{width:'100%',maxHeight:'180px',objectFit:'cover',borderRadius:'12px',display:'block'}}/>
+            <label htmlFor="fd-gallery" style={{position:'absolute',bottom:'8px',right:'8px',background:'rgba(15,23,42,0.85)',border:'1px solid #334155',color:'#94a3b8',borderRadius:'8px',padding:'6px 10px',cursor:'pointer',fontSize:'12px'}}>
+              🔄 {lang==='el'?'Αλλαγή':'Change'}
+              <input id="fd-gallery" type="file" accept="image/*" onChange={handleFile} style={{display:'none'}}/>
+            </label>
+          </div>
+        ) : (
           <div style={{marginBottom:'16px'}}>
-            <p style={{color:'#64748b',fontSize:'12px',marginBottom:'10px',textAlign:'center'}}>{lang==='el'?'Φωτογράφισε για AI αναγνώριση (προαιρετικό)':'Photograph for AI recognition (optional)'}</p>
+            <p style={{color:'#64748b',fontSize:'12px',marginBottom:'10px',textAlign:'center'}}>
+              {lang==='el'?'Φωτογράφισε για AI αναγνώριση':'Photograph for AI recognition'}
+            </p>
             <div style={{display:'flex',gap:'10px'}}>
-              <button onClick={()=>fileRef.current.click()}
-                style={{flex:1,background:'linear-gradient(135deg,#1e293b,#0f172a)',border:'1px solid #d4a853',color:'#d4a853',padding:'12px',borderRadius:'12px',fontSize:'13px',fontWeight:'600',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
+              <label htmlFor="fd-camera" style={{flex:1,background:'linear-gradient(135deg,#1e293b,#0f172a)',border:'1px solid #d4a853',color:'#d4a853',padding:'13px',borderRadius:'12px',fontSize:'14px',fontWeight:'600',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
                 📷 {lang==='el'?'Κάμερα':'Camera'}
-              </button>
-              <button onClick={()=>galleryRef.current.click()}
-                style={{flex:1,background:'linear-gradient(135deg,#1e293b,#0f172a)',border:'1px solid #334155',color:'#94a3b8',padding:'12px',borderRadius:'12px',fontSize:'13px',fontWeight:'600',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
+                <input id="fd-camera" type="file" accept="image/*" capture="environment" onChange={handleFile} style={{display:'none'}}/>
+              </label>
+              <label htmlFor="fd-gallery2" style={{flex:1,background:'#1e293b',border:'1px solid #334155',color:'#94a3b8',padding:'13px',borderRadius:'12px',fontSize:'14px',fontWeight:'600',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
                 🖼️ {lang==='el'?'Συλλογή':'Gallery'}
-              </button>
+                <input id="fd-gallery2" type="file" accept="image/*" onChange={handleFile} style={{display:'none'}}/>
+              </label>
             </div>
           </div>
-        ) : null}
+        )}
         {form.aiResult && <div style={{background:'#1e293b',borderRadius:'10px',padding:'10px 14px',marginBottom:'14px',fontSize:'12px',color:'#94a3b8',borderLeft:'3px solid #d4a853'}}>🤖 {form.aiResult.substring(0,120)}...</div>}
         {[{lbl:t.add_name,ph:t.add_name_ph,k:'name',tp:'text'},{lbl:t.add_depth,ph:'e.g. 15',k:'depth',tp:'number'},{lbl:t.add_notes,ph:'...',k:'notes',tp:'text'}].map(({lbl,ph,k,tp})=>(
           <div key={k} style={{marginBottom:'12px'}}>
@@ -230,7 +236,7 @@ function AddFindModal({ lang, sessions, currentPos, onClose, onAdd }) {
           </div>
           <div style={{textAlign:'center',marginTop:'5px',fontSize:'12px',color:getR(form.rarity).color}}>{T[lang].rar[form.rarity-1]}</div>
         </div>
-        <button onClick={save} style={{width:'100%',background:'#d4a853',border:'none',color:'#0f172a',padding:'15px',borderRadius:'12px',fontWeight:'700',fontSize:'16px',cursor:'pointer'}}>{t.add_save}</button>
+        <button onClick={save} style={{width:'100%',background:form.name?'#d4a853':'#334155',border:'none',color:form.name?'#0f172a':'#64748b',padding:'15px',borderRadius:'12px',fontWeight:'700',fontSize:'16px',cursor:form.name?'pointer':'not-allowed'}}>{t.add_save}</button>
       </div>
     </div>
   )
