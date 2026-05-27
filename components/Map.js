@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { MAP_LAYERS } from './constants'
 import { getR, isAnc } from './helpers'
 
-export default function MapComponent({ finds, currentPos, routePoints, layerIdx, onMapClick, tapMode, pickingArea, onAreaPicked, mapCenterRef, mapGetCenterRef }) {
+export default function MapComponent({ finds, currentPos, routePoints, layerIdx, onMapClick, tapMode, pickingArea, onAreaPicked, mapCenterRef, mapGetCenterRef, mapInstRef }) {
   const divRef     = useRef(null)
   const mapRef     = useRef(null)   // leaflet map instance
   const tileRef    = useRef(null)   // current tile layer
@@ -46,6 +46,9 @@ export default function MapComponent({ finds, currentPos, routePoints, layerIdx,
       })
 
       ;[100, 500, 1200].forEach(d => setTimeout(() => mapRef.current?.invalidateSize(), d))
+
+      // Expose map instance to parent
+      if (mapInstRef) mapInstRef.current = mapRef.current
 
       // Expose getCenter as a callable function — always returns latest value
       if (mapGetCenterRef) {

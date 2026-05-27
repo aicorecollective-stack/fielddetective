@@ -223,6 +223,7 @@ export default function App() {
   const [pickingArea, setPickingArea] = useState(false)
   const mapCenterRef = useRef({lat:37.9838, lng:23.7275})
   const mapGetCenter = useRef(null)  // set by MapComponent
+  const mapInstRef   = useRef(null)   // Leaflet map instance
   const [sessTime, setSessTime] = useState(0)
   const [curPos, setCurPos] = useState(null)
   const [route, setRoute] = useState([])
@@ -330,10 +331,6 @@ export default function App() {
             </button>
             <button onClick={(e)=>{
               e.stopPropagation()
-              const c = mapGetCenter.current
-                ? mapGetCenter.current()
-                : mapCenterRef.current
-              setTimelapseCenter({lat: c.lat, lng: c.lng})
               setPickingArea(false)
               setTimeout(()=>setShowTimelapse(true), 50)
             }}
@@ -345,8 +342,8 @@ export default function App() {
       )}
 
       {/* Timelapse modal */}
-      {showTimelapse && timelapseCenter && (
-        <Timelapse center={timelapseCenter} onClose={()=>setShowTimelapse(false)}/>
+      {showTimelapse && (
+        <Timelapse mapInstance={mapInstRef.current} onClose={()=>setShowTimelapse(false)}/>
       )}
 
       {/* Top bar */}
@@ -396,6 +393,7 @@ export default function App() {
                 pickingArea={pickingArea}
                 mapCenterRef={mapCenterRef}
                 mapGetCenterRef={mapGetCenter}
+                mapInstRef={mapInstRef}
               />
               {/* Tap banner */}
               {tapMode && (
