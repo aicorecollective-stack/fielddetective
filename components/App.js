@@ -4,7 +4,6 @@ import { MOCK_FINDS, MOCK_SESSIONS, MAP_LAYERS, CATEGORIES, RARITY } from './con
 import { getR, isAnc, fmtTime, haverD, callAI, exportGPX } from './helpers'
 
 const MapComponent = dynamic(() => import('./Map'), { ssr: false })
-const Timelapse   = dynamic(() => import('./Timelapse'), { ssr: false })
 
 // ─── TRANSLATIONS ─────────────────────────────────────────────────────────────
 const T = {
@@ -218,12 +217,8 @@ export default function App() {
   const [tappedLoc, setTappedLoc] = useState(null)
   const [search, setSearch] = useState('')
   const [sessState, setSessState] = useState('idle')
-  const [showTimelapse, setShowTimelapse] = useState(false)
-  const [timelapseCenter, setTimelapseCenter] = useState(null)
-  const [pickingArea, setPickingArea] = useState(false)
-  const mapCenterRef = useRef({lat:37.9838, lng:23.7275})
-  const mapGetCenter = useRef(null)  // set by MapComponent
-  const mapInstRef   = useRef(null)   // Leaflet map instance
+  const mapGetCenter = useRef(null)
+  const mapInstRef   = useRef(null)
   const [sessTime, setSessTime] = useState(0)
   const [curPos, setCurPos] = useState(null)
   const [route, setRoute] = useState([])
@@ -311,40 +306,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Crosshair area picker overlay */}
-      {pickingArea && tab==='map' && (
-        <div style={{position:'fixed',inset:0,zIndex:9000,pointerEvents:'none'}}>
-          {/* Dim overlay */}
-          <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.25)'}}/>
-          {/* Crosshair */}
-          <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',textAlign:'center',pointerEvents:'none'}}>
-            <div style={{fontSize:'48px',lineHeight:1,filter:'drop-shadow(0 2px 6px rgba(0,0,0,0.8))'}}>⊕</div>
-            <div style={{color:'white',fontSize:'13px',marginTop:'8px',background:'rgba(0,0,0,0.6)',padding:'4px 12px',borderRadius:'10px',whiteSpace:'nowrap'}}>
-              {lang==='el'?'Κέντρασε τον χάρτη στην περιοχή σου':'Pan map to your area'}
-            </div>
-          </div>
-          {/* Buttons */}
-          <div style={{position:'absolute',bottom:'90px',left:0,right:0,display:'flex',gap:'12px',padding:'0 20px',pointerEvents:'all'}}>
-            <button onClick={()=>setPickingArea(false)}
-              style={{flex:1,background:'#1e293b',border:'1px solid #334155',color:'#94a3b8',padding:'14px',borderRadius:'12px',fontWeight:'700',fontSize:'15px',cursor:'pointer'}}>
-              ✕ {lang==='el'?'Ακύρωση':'Cancel'}
-            </button>
-            <button onClick={(e)=>{
-              e.stopPropagation()
-              setPickingArea(false)
-              setTimeout(()=>setShowTimelapse(true), 50)
-            }}
-              style={{flex:2,background:'linear-gradient(135deg,#6366f1,#4f46e5)',border:'none',color:'white',padding:'14px',borderRadius:'12px',fontWeight:'700',fontSize:'15px',cursor:'pointer',boxShadow:'0 4px 16px rgba(99,102,241,0.4)'}}>
-              🎬 {lang==='el'?'Επιβεβαίωση Περιοχής':'Confirm Area'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Timelapse modal */}
-      {showTimelapse && (
-        <Timelapse mapInstance={mapInstRef.current} onClose={()=>setShowTimelapse(false)}/>
-      )}
+      
 
       {/* Top bar */}
       <div style={{background:'#020617',padding:'10px 20px 8px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid #1e293b',flexShrink:0}}>
@@ -390,8 +352,6 @@ export default function App() {
                 layerIdx={layerIdx}
                 onMapClick={handleMapClick}
                 tapMode={tapMode}
-                pickingArea={pickingArea}
-                mapCenterRef={mapCenterRef}
                 mapGetCenterRef={mapGetCenter}
                 mapInstRef={mapInstRef}
               />
@@ -428,9 +388,18 @@ export default function App() {
                     style={{width:'100%',background:'linear-gradient(135deg,#d4a853,#b8882f)',border:'none',color:'#0f172a',padding:'15px',borderRadius:'14px',fontWeight:'700',fontSize:'16px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'10px',boxShadow:'0 4px 20px rgba(212,168,83,0.35)'}}>
                     <PlayIco/>{t.map_start}
                   </button>
-                  <button onClick={()=>setPickingArea(true)}
-                    style={{width:'100%',background:'#1e293b',border:'1px solid #334155',color:'#94a3b8',padding:'12px',borderRadius:'12px',fontWeight:'600',fontSize:'14px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
-                    🎬 {lang==='el'?'Timelapse Περιοχής':'Area Timelapse'}
+                  <button onClick={()=>{
+                    const fn = mapGetCenter.current
+                    const c  = fn ? fn() : {lat:37.9838,lng:23.7275}
+                    const inst = mapInstRef.current
+                    const z  = inst ? inst.getZoom() : 15
+                    window.open(
+                      `https://livingatlas.arcgis.com/wayback/#mapCenter=\${c.lng.toFixed(5)}%2C\${c.lat.toFixed(5)}%2C\${z}&mode=explore`,
+                      '_blank'
+                    )
+                  }}
+                    style={{width:'100%',background:'#1e293b',border:'1px solid #6366f1',color:'#818cf8',padding:'12px',borderRadius:'12px',fontWeight:'600',fontSize:'14px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
+                    🎬 {lang==='el'?'Wayback Timelapse ↗':'Wayback Timelapse ↗'}
                   </button>
                 </div>
               ) : (

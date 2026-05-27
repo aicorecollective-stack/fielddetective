@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { MAP_LAYERS } from './constants'
 import { getR, isAnc } from './helpers'
 
-export default function MapComponent({ finds, currentPos, routePoints, layerIdx, onMapClick, tapMode, pickingArea, onAreaPicked, mapCenterRef, mapGetCenterRef, mapInstRef }) {
+export default function MapComponent({ finds, currentPos, routePoints, layerIdx, onMapClick, tapMode, mapGetCenterRef, mapInstRef }) {
   const divRef     = useRef(null)
   const mapRef     = useRef(null)   // leaflet map instance
   const tileRef    = useRef(null)   // current tile layer
@@ -10,7 +10,6 @@ export default function MapComponent({ finds, currentPos, routePoints, layerIdx,
   const routePLRef = useRef(null)
   const posMarkRef = useRef(null)
   const [ready, setReady] = useState(false)
-  const pickingAreaRef = useRef(false)
 
   // ── 1. Load Leaflet + init map ─────────────────────────────────────────────
   useEffect(() => {
@@ -40,9 +39,6 @@ export default function MapComponent({ finds, currentPos, routePoints, layerIdx,
 
       mapRef.current.on('click', e => {
         if (onMapClick) onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng })
-        if (onAreaPicked && pickingAreaRef.current) {
-          onAreaPicked({ lat: e.latlng.lat, lng: e.latlng.lng })
-        }
       })
 
       ;[100, 500, 1200].forEach(d => setTimeout(() => mapRef.current?.invalidateSize(), d))
@@ -72,9 +68,6 @@ export default function MapComponent({ finds, currentPos, routePoints, layerIdx,
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
     }
   }, [])
-
-  // ── Sync pickingArea prop to ref (refs are readable inside closures) ───────
-  useEffect(() => { pickingAreaRef.current = pickingArea }, [pickingArea])
 
   // ── 2. Switch tile layer ───────────────────────────────────────────────────
   // Depends on BOTH layerIdx AND ready — so if user clicks before map loads,
@@ -152,27 +145,9 @@ export default function MapComponent({ finds, currentPos, routePoints, layerIdx,
   }, [currentPos, ready])
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      <div
-        ref={divRef}
-        style={{ width: '100%', height: '100%', cursor: pickingArea ? 'cell' : tapMode ? 'crosshair' : 'grab' }}
-      />
-      {/* Area picking banner */}
-      {pickingArea && (
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, zIndex: 9999,
-          background: 'rgba(99,102,241,0.95)', padding: '12px 16px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          pointerEvents: 'all',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '18px' }}>🎬</span>
-            <span style={{ color: '#fff', fontSize: '14px', fontWeight: '700' }}>
-              Tap anywhere on the map to set the Timelapse center
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
+    <div
+      ref={divRef}
+      style={{ width: '100%', height: '100%', cursor: tapMode ? 'crosshair' : 'grab' }}
+    />
   )
 }
