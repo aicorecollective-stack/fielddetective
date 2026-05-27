@@ -394,7 +394,7 @@ export default function App() {
                     const inst = mapInstRef.current
                     const z  = inst ? inst.getZoom() : 15
                     window.open(
-                      `https://livingatlas.arcgis.com/wayback/#mapCenter=\${c.lng.toFixed(5)}%2C\${c.lat.toFixed(5)}%2C\${z}&mode=explore`,
+                      `https://livingatlas.arcgis.com/wayback/#mapCenter=${c.lng.toFixed(5)}%2C${c.lat.toFixed(5)}%2C${z}&mode=explore`,
                       '_blank'
                     )
                   }}
