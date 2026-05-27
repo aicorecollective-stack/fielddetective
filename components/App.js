@@ -96,7 +96,7 @@ function GDPRModal({ lang, onAccept }) {
 function AncientAlert({ find, lang, onClose }) {
   const t = T[lang]
   return (
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.9)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px'}}>
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.9)',zIndex:1100,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px'}}>
       <div style={{background:'#0f172a',border:'2px solid #f59e0b',borderRadius:'20px',padding:'24px',maxWidth:'380px',width:'100%'}}>
         <h3 style={{color:'#f59e0b',fontSize:'17px',fontFamily:"'Playfair Display',serif",margin:'0 0 12px'}}>{t.anc_title}</h3>
         <p style={{color:'#94a3b8',fontSize:'13px',margin:'0 0 6px'}}>"{find.name}"</p>
@@ -151,7 +151,7 @@ function AddFindModal({ lang, sessions, currentPos, onClose, onAdd }) {
   }
 
   if(done) return (
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.9)',zIndex:400,display:'flex',alignItems:'center',justifyContent:'center'}}>
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.9)',zIndex:1200,display:'flex',alignItems:'center',justifyContent:'center'}}>
       <div style={{textAlign:'center'}}>
         <div style={{fontSize:'60px'}}>✅</div>
         <p style={{color:'#f8fafc',fontSize:'18px',marginTop:'16px',fontFamily:"'Playfair Display',serif"}}>{t.add_saved}</p>
@@ -160,7 +160,7 @@ function AddFindModal({ lang, sessions, currentPos, onClose, onAdd }) {
   )
 
   return (
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',zIndex:300,display:'flex',alignItems:'flex-end'}}>
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',zIndex:1100,display:'flex',alignItems:'flex-end'}}>
       <div style={{background:'#0f172a',width:'100%',borderRadius:'20px 20px 0 0',padding:'24px',maxHeight:'92vh',overflowY:'auto',border:'1px solid #1e293b'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'18px'}}>
           <h3 style={{color:'#f8fafc',fontSize:'18px',fontFamily:"'Playfair Display',serif",margin:0}}>{t.add_title}</h3>
@@ -293,7 +293,7 @@ export default function App() {
       {ancAlert && <AncientAlert find={ancAlert} lang={lang} onClose={()=>setAncAlert(null)}/>}
       {showAdd && <AddFindModal lang={lang} sessions={sessions} currentPos={tappedLoc||curPos} onClose={()=>{setShowAdd(false);setTappedLoc(null)}} onAdd={addFind}/>}
       {sessDone && (
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.9)',zIndex:400,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px'}}>
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.9)',zIndex:1200,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px'}}>
           <div style={{background:'#0f172a',border:'1px solid #d4a853',borderRadius:'20px',padding:'28px',maxWidth:'360px',width:'100%',textAlign:'center'}}>
             <div style={{fontSize:'48px',marginBottom:'14px'}}>🏁</div>
             <h3 style={{color:'#d4a853',fontSize:'20px',fontFamily:"'Playfair Display',serif",margin:'0 0 6px'}}>{t.sc_title}</h3>

@@ -10,3 +10,6 @@ body { font-family: 'DM Sans', sans-serif; background: #020617; color: #f8fafc; 
 @keyframes pulse-ring { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2.2); opacity: 0; } }
 
 .leaflet-container { background: #0f172a; }
+.leaflet-control-container { z-index: 400 !important; }
+.leaflet-pane { z-index: 400 !important; }
+.leaflet-top, .leaflet-bottom { z-index: 400 !important; }
