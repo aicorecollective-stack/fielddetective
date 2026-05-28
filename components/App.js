@@ -1082,11 +1082,11 @@ export default function App() {
       )}
 
       {/* Main content */}
-      <div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0,overflow:'hidden'}}>
+      <div style={{flex:1,display:'flex',flexDirection:'column'}}>
 
         {/* MAP SCREEN */}
         {screen==='map' && (
-          <div style={{display:'flex',flexDirection:'column',flex:1,minHeight:0}}>
+          <div style={{display:'flex',flexDirection:'column'}}>
 
 
 

@@ -16,7 +16,11 @@ export default function MapComponent({ finds, currentPos, routePoints, layerIdx,
 
   // Compute pixel height (Leaflet needs explicit px, not %)
   useEffect(() => {
-    const calc = () => setMapH(Math.max(200, window.innerHeight - 250))
+    const calc = () => {
+      // Leave room for: top bar 52px + recording bar 44px + controls 110px + bottom nav 56px + buffer 20px = 282px
+      // But controls only show when recording, so we use a generous fixed offset
+      setMapH(Math.max(180, window.innerHeight - 310))
+    }
     calc()
     window.addEventListener('resize', calc)
     return () => window.removeEventListener('resize', calc)
