@@ -415,6 +415,153 @@ function AlbumView({ filtered, setSelectedFind, getR }) {
   ))
 }
 
+
+
+// ─── SESSION CARD (expandable with route map) ─────────────────────────────
+function SessionCard({ s, i, total, finds, lang, t, exportGPX }) {
+  const [open, setOpen] = useState(false)
+  const sf = finds.filter(f => f.sessionId === s.id)
+
+  return (
+    <div style={{position:'relative',paddingLeft:'26px',marginBottom:'16px'}}>
+      {i < total-1 && <div style={{position:'absolute',left:'8px',top:'30px',bottom:'-12px',width:'2px',background:'#1e293b'}}/>}
+      <div style={{position:'absolute',left:'0',top:'18px',width:'18px',height:'18px',borderRadius:'50%',background:'#d4a853',border:'3px solid #020617'}}/>
+
+      {/* Header — always visible */}
+      <div onClick={()=>setOpen(o=>!o)}
+        style={{background:'#1e293b',borderRadius:open?'14px 14px 0 0':'14px',padding:'14px 16px',border:'1px solid #334155',cursor:'pointer'}}>
+        <div style={{display:'flex',justifyContent:'space-between',marginBottom:'8px'}}>
+          <div>
+            <div style={{color:'#f8fafc',fontSize:'15px',fontWeight:'600'}}>{s.name}</div>
+            <div style={{color:'#64748b',fontSize:'12px'}}>{s.date} · {s.location}</div>
+          </div>
+          <span style={{color:'#64748b',fontSize:'18px',transition:'transform 0.2s',transform:open?'rotate(180deg)':'rotate(0deg)'}}>⌄</span>
+        </div>
+        <div style={{display:'flex',gap:'12px',fontSize:'12px',color:'#94a3b8'}}>
+          <span>📍 {s.finds}</span>
+          <span>🗺️ {s.distance}km</span>
+          <span>⏱️ {Math.floor(s.duration/60)}h {s.duration%60}m</span>
+        </div>
+      </div>
+
+      {/* Expandable detail */}
+      {open && (
+        <div style={{background:'#0f172a',border:'1px solid #334155',borderTop:'none',borderRadius:'0 0 14px 14px',padding:'14px 16px'}}>
+
+          {/* Route map */}
+          <div style={{marginBottom:'14px'}}>
+            <div style={{color:'#64748b',fontSize:'11px',marginBottom:'8px',textTransform:'uppercase',letterSpacing:'0.05em'}}>🗺️ {lang==='el'?'Διαδρομή':'Route'}</div>
+            <RouteMap route={s.route||[]} finds={finds} sessionId={s.id}/>
+          </div>
+
+          {/* Finds in this session */}
+          {sf.length > 0 && (
+            <div style={{marginBottom:'14px'}}>
+              <div style={{color:'#64748b',fontSize:'11px',marginBottom:'8px',textTransform:'uppercase',letterSpacing:'0.05em'}}>📍 {lang==='el'?'Ευρήματα':'Finds'} ({sf.length})</div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
+                {sf.map(f => {
+                  const rv = getR(f.rarity)
+                  return (
+                    <div key={f.id} style={{background:'#1e293b',borderRadius:'8px',padding:'5px 10px',display:'flex',alignItems:'center',gap:'6px',fontSize:'12px'}}>
+                      <span>{rv.emoji}</span>
+                      <span style={{color:'#e2e8f0'}}>{f.name}</span>
+                      <span style={{color:'#64748b'}}>{f.depth}cm</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* GPX export */}
+          <button onClick={(e)=>{e.stopPropagation();exportGPX(s,finds,s.route||[])}}
+            style={{width:'100%',background:'#1e293b',border:'1px solid #334155',color:'#94a3b8',padding:'10px',borderRadius:'8px',cursor:'pointer',fontSize:'13px',fontWeight:'600'}}>
+            {t.sess_gpx}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── ROUTE MAP CANVAS ──────────────────────────────────────────────────────
+function RouteMap({ route, finds, sessionId }) {
+  const canvasRef = useRef(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || !route || route.length < 2) return
+    const ctx = canvas.getContext('2d')
+    const W = canvas.width, H = canvas.height
+
+    // Background
+    ctx.fillStyle = '#0f172a'
+    ctx.fillRect(0, 0, W, H)
+
+    // Calculate bounds
+    const lats = route.map(p=>p.lat), lngs = route.map(p=>p.lng)
+    const minLat = Math.min(...lats), maxLat = Math.max(...lats)
+    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs)
+    const pad = 20
+    const toX = lng => pad + ((lng-minLng)/(maxLng-minLng||0.0001)) * (W-pad*2)
+    const toY = lat => H - pad - ((lat-minLat)/(maxLat-minLat||0.0001)) * (H-pad*2)
+
+    // Grid
+    ctx.strokeStyle = '#1e293b'
+    ctx.lineWidth = 1
+    for(let i=0;i<5;i++){
+      ctx.beginPath();ctx.moveTo(0,H/4*i);ctx.lineTo(W,H/4*i);ctx.stroke()
+      ctx.beginPath();ctx.moveTo(W/4*i,0);ctx.lineTo(W/4*i,H);ctx.stroke()
+    }
+
+    // Route line
+    ctx.beginPath()
+    ctx.strokeStyle = '#d4a853'
+    ctx.lineWidth = 2.5
+    ctx.lineJoin = 'round'
+    ctx.setLineDash([])
+    route.forEach((p,i) => {
+      i===0 ? ctx.moveTo(toX(p.lng),toY(p.lat)) : ctx.lineTo(toX(p.lng),toY(p.lat))
+    })
+    ctx.stroke()
+
+    // Start dot (green)
+    const s = route[0]
+    ctx.beginPath();ctx.arc(toX(s.lng),toY(s.lat),6,0,Math.PI*2)
+    ctx.fillStyle='#22c55e';ctx.fill()
+
+    // End dot (red)
+    const e = route[route.length-1]
+    ctx.beginPath();ctx.arc(toX(e.lng),toY(e.lat),6,0,Math.PI*2)
+    ctx.fillStyle='#ef4444';ctx.fill()
+
+    // Find markers
+    const RARITY_COLORS = ['#6b7280','#22c55e','#3b82f6','#a855f7','#f59e0b']
+    finds.filter(f=>f.sessionId===sessionId).forEach(f => {
+      ctx.beginPath();ctx.arc(toX(f.lng),toY(f.lat),5,0,Math.PI*2)
+      ctx.fillStyle = RARITY_COLORS[f.rarity-1]||'#6b7280'
+      ctx.fill()
+      ctx.strokeStyle='white';ctx.lineWidth=1.5;ctx.stroke()
+    })
+
+    // Legend
+    ctx.font = '10px sans-serif'
+    ctx.fillStyle = '#22c55e';ctx.fillText('▶ Start', 6, H-18)
+    ctx.fillStyle = '#ef4444';ctx.fillText('■ End', 6, H-6)
+  }, [route, finds, sessionId])
+
+  if (!route || route.length < 2) return (
+    <div style={{background:'#0f172a',borderRadius:'12px',height:'160px',display:'flex',alignItems:'center',justifyContent:'center',color:'#334155',fontSize:'13px',border:'1px solid #1e293b'}}>
+      🗺️ No route data
+    </div>
+  )
+
+  return (
+    <canvas ref={canvasRef} width={390} height={160}
+      style={{width:'100%',height:'160px',borderRadius:'12px',display:'block',border:'1px solid #1e293b'}}/>
+  )
+}
+
 export default function App() {
   const [lang, setLang] = useState('el')
   const [gdpr, setGdpr] = useState(false)
@@ -450,15 +597,19 @@ export default function App() {
   const timerRef = useRef(null)
   const t = T[lang]
 
+  const geocodedRef = useRef(false)  // prevent duplicate calls
+
   const startGPS = () => {
     if(!navigator.geolocation) return
+    geocodedRef.current = false  // reset on each new session
     watchRef.current = navigator.geolocation.watchPosition(
       pos => {
         const p = {lat:pos.coords.latitude, lng:pos.coords.longitude}
         setCurPos(p)
         setRoute(r=>[...r,p])
-        // Fetch location name once (when we first get position)
-        if (!locationName) {
+        // Geocode only once per session (ref avoids stale closure)
+        if (!geocodedRef.current) {
+          geocodedRef.current = true
           fetch(`/api/geocode?lat=${p.lat}&lng=${p.lng}`)
             .then(r=>r.json())
             .then(d=>{ if(d.name) setLocationName(d.name) })
@@ -800,20 +951,14 @@ export default function App() {
         {tab==='sessions' && (
           <div style={{padding:'20px 20px 100px',animation:'fadeUp 0.25s ease'}}>
             <h2 style={{color:'#f8fafc',fontSize:'22px',fontFamily:"'Playfair Display',serif",marginBottom:'20px'}}>{t.sess_title}</h2>
-            {sessions.map((s,i)=>(
-              <div key={s.id} style={{cursor:'pointer',position:'relative',paddingLeft:'26px',marginBottom:'16px'}}>
-                {i<sessions.length-1&&<div style={{position:'absolute',left:'8px',top:'30px',bottom:'-12px',width:'2px',background:'#1e293b'}}/>}
-                <div style={{position:'absolute',left:'0',top:'18px',width:'18px',height:'18px',borderRadius:'50%',background:'#d4a853',border:'3px solid #020617'}}/>
-                <div style={{background:'#1e293b',borderRadius:'14px',padding:'14px 16px',border:'1px solid #334155'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:'8px'}}>
-                    <div><div style={{color:'#f8fafc',fontSize:'15px',fontWeight:'600'}}>{s.name}</div><div style={{color:'#64748b',fontSize:'12px'}}>{s.date} · {s.location}</div></div>
-                    <button onClick={()=>exportGPX(s,finds,s.route||[])} style={{background:'#0f172a',border:'1px solid #334155',color:'#64748b',borderRadius:'7px',padding:'4px 8px',cursor:'pointer',fontSize:'11px'}}>{t.sess_gpx}</button>
-                  </div>
-                  <div style={{display:'flex',gap:'12px',fontSize:'12px',color:'#94a3b8'}}>
-                    <span>📍 {s.finds}</span><span>🗺️ {s.distance}km</span><span>⏱️ {Math.floor(s.duration/60)}h</span><span>🌤️ {s.weather}</span>
-                  </div>
-                </div>
+            {sessions.length === 0 && (
+              <div style={{textAlign:'center',padding:'40px',color:'#475569'}}>
+                <div style={{fontSize:'48px',marginBottom:'12px'}}>🗺️</div>
+                <div>{lang==='el'?'Καμία συνεδρία ακόμα':'No sessions yet'}</div>
               </div>
+            )}
+            {sessions.map((s,i)=>(
+              <SessionCard key={s.id} s={s} i={i} total={sessions.length} finds={finds} lang={lang} t={t} exportGPX={exportGPX}/>
             ))}
           </div>
         )}
