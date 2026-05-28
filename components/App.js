@@ -72,49 +72,125 @@ const useT = (lang) => T[lang] || T.en
 const persist = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)) } catch {} }
 const load    = (key, def) => { try { return JSON.parse(localStorage.getItem(key)) ?? def } catch { return def } }
 
-// ─── ROUTE MAP CANVAS ────────────────────────────────────────────────────────
+// ─── ROUTE MAP CANVAS with OSM background ────────────────────────────────────
 function RouteMap({ route, finds, sessionId, height=160 }) {
   const ref = useRef(null)
+
   useEffect(() => {
     const c = ref.current; if (!c) return
     const ctx = c.getContext('2d'), W = c.width, H = c.height
-    ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,W,H)
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(0,0,W,H)
     if (!route || route.length < 2) {
-      ctx.fillStyle = '#334155'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center'
+      ctx.fillStyle = '#475569'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center'
       ctx.fillText('No route data', W/2, H/2); return
     }
+
     const lats = route.map(p=>p.lat), lngs = route.map(p=>p.lng)
-    const [minLat,maxLat] = [Math.min(...lats),Math.max(...lats)]
-    const [minLng,maxLng] = [Math.min(...lngs),Math.max(...lngs)]
-    const pad = 22
-    const tx = lng => pad + ((lng-minLng)/(maxLng-minLng||0.001))*(W-pad*2)
-    const ty = lat => H-pad - ((lat-minLat)/(maxLat-minLat||0.001))*(H-pad*2)
-    // Grid
-    ctx.strokeStyle='#1e293b'; ctx.lineWidth=1
-    for(let i=1;i<4;i++){ctx.beginPath();ctx.moveTo(W/4*i,0);ctx.lineTo(W/4*i,H);ctx.stroke()}
-    for(let i=1;i<4;i++){ctx.beginPath();ctx.moveTo(0,H/4*i);ctx.lineTo(W,H/4*i);ctx.stroke()}
-    // Route
-    ctx.beginPath(); ctx.strokeStyle='#d4a853'; ctx.lineWidth=2.5; ctx.lineJoin='round'
-    route.forEach((p,i)=>i===0?ctx.moveTo(tx(p.lng),ty(p.lat)):ctx.lineTo(tx(p.lng),ty(p.lat)))
-    ctx.stroke()
-    // Start/end
-    const s=route[0], e=route[route.length-1]
-    ctx.beginPath();ctx.arc(tx(s.lng),ty(s.lat),6,0,Math.PI*2);ctx.fillStyle='#22c55e';ctx.fill()
-    ctx.beginPath();ctx.arc(tx(e.lng),ty(e.lat),6,0,Math.PI*2);ctx.fillStyle='#ef4444';ctx.fill()
-    // Finds
-    const sf = finds.filter(f=>f.sessionId===sessionId)
-    sf.forEach(f=>{
-      ctx.beginPath();ctx.arc(tx(f.lng),ty(f.lat),5,0,Math.PI*2)
-      ctx.fillStyle=getR(f.rarity).color;ctx.fill()
-      ctx.strokeStyle='white';ctx.lineWidth=1.5;ctx.stroke()
-    })
-    // Legend
-    ctx.font='10px sans-serif'; ctx.textAlign='left'
-    ctx.fillStyle='#22c55e';ctx.fillText('▶ Start',6,H-6)
-    ctx.fillStyle='#ef4444';ctx.fillText('■ End',55,H-6)
-    ctx.fillStyle='#64748b';ctx.fillText(`${route.length} pts`,W-50,H-6)
-  },[route,finds,sessionId])
-  return <canvas ref={ref} width={390} height={height} style={{width:'100%',height:height+'px',borderRadius:'12px',display:'block',border:'1px solid #1e293b'}}/>
+    const minLat=Math.min(...lats), maxLat=Math.max(...lats)
+    const minLng=Math.min(...lngs), maxLng=Math.max(...lngs)
+    const pad = 28
+
+    // ── Pick best zoom level ──────────────────────────────────────────────────
+    const latSpan = maxLat - minLat || 0.005
+    const lngSpan = maxLng - minLng || 0.005
+    const span    = Math.max(latSpan, lngSpan)
+    let zoom = 15
+    if (span > 0.05) zoom = 13
+    else if (span > 0.02) zoom = 14
+    else if (span > 0.005) zoom = 15
+    else zoom = 16
+
+    // ── Tile helpers ──────────────────────────────────────────────────────────
+    const lon2x = (lon, z) => Math.floor((lon+180)/360 * Math.pow(2,z))
+    const lat2y = (lat, z) => Math.floor((1 - Math.log(Math.tan(lat*Math.PI/180) + 1/Math.cos(lat*Math.PI/180))/Math.PI)/2 * Math.pow(2,z))
+    const tile2lon = (x, z) => x / Math.pow(2,z) * 360 - 180
+    const tile2lat = (y, z) => Math.atan(Math.sinh(Math.PI*(1 - 2*y/Math.pow(2,z)))) * 180/Math.PI
+
+    const midLat = (minLat+maxLat)/2, midLng = (minLng+maxLng)/2
+    const tileX  = lon2x(midLng, zoom), tileY = lat2y(midLat, zoom)
+
+    // ── How many tiles do we need? ────────────────────────────────────────────
+    const TILE = 256
+    const across = Math.ceil(W/TILE) + 2
+    const down   = Math.ceil(H/TILE) + 2
+    const half_x = Math.floor(across/2), half_y = Math.floor(down/2)
+
+    // ── Pixel origin: where does tileX,tileY appear on canvas? ───────────────
+    const originLon = tile2lon(tileX, zoom), originLat = tile2lat(tileY, zoom)
+    const deg2px_lng = TILE * Math.pow(2,zoom) / 360
+    const deg2px_lat = (lat) => {
+      const sinLat = Math.sin(lat*Math.PI/180)
+      return TILE * Math.pow(2,zoom) / (2*Math.PI) / Math.cos(lat*Math.PI/180) * (1 - sinLat*sinLat)
+    }
+
+    // simpler: use mercator projection
+    const latToMerc = lat => Math.log(Math.tan((90+lat)*Math.PI/360))
+    const mercPerPx  = (latToMerc(tile2lat(tileY,zoom)) - latToMerc(tile2lat(tileY+1,zoom))) / TILE
+
+    const lngPerPx  = 360 / (TILE * Math.pow(2,zoom))
+    const originX   = W/2 - (midLng - originLon) / lngPerPx
+    const originY   = H/2 - (latToMerc(midLat) - latToMerc(originLat)) / mercPerPx
+
+    // ── Coordinate → canvas pixel ─────────────────────────────────────────────
+    const toX = lng => originX + (lng - originLon) / lngPerPx
+    const toY = lat => originY - (latToMerc(lat) - latToMerc(originLat)) / mercPerPx
+
+    // ── Load & draw tiles ─────────────────────────────────────────────────────
+    const subs = ['a','b','c']
+    let pending = 0
+    const drawRoute = () => {
+      if (pending > 0) return  // wait for all tiles
+
+      // Route line
+      ctx.beginPath(); ctx.strokeStyle='#d4a853'; ctx.lineWidth=3
+      ctx.lineJoin='round'; ctx.lineCap='round'
+      ctx.shadowColor='rgba(0,0,0,0.6)'; ctx.shadowBlur=4
+      route.forEach((p,i)=>i===0?ctx.moveTo(toX(p.lng),toY(p.lat)):ctx.lineTo(toX(p.lng),toY(p.lat)))
+      ctx.stroke(); ctx.shadowBlur=0
+
+      // Start/end dots
+      const s=route[0], e=route[route.length-1]
+      ;[[s,'#22c55e'],[e,'#ef4444']].forEach(([pt,color])=>{
+        ctx.beginPath(); ctx.arc(toX(pt.lng),toY(pt.lat),8,0,Math.PI*2)
+        ctx.fillStyle='white'; ctx.fill()
+        ctx.beginPath(); ctx.arc(toX(pt.lng),toY(pt.lat),6,0,Math.PI*2)
+        ctx.fillStyle=color; ctx.fill()
+      })
+
+      // Find dots
+      finds.filter(f=>f.sessionId===sessionId).forEach(f=>{
+        const rv=getR(f.rarity)
+        ctx.beginPath(); ctx.arc(toX(f.lng),toY(f.lat),7,0,Math.PI*2)
+        ctx.fillStyle='white'; ctx.fill()
+        ctx.beginPath(); ctx.arc(toX(f.lng),toY(f.lat),5,0,Math.PI*2)
+        ctx.fillStyle=rv.color; ctx.fill()
+      })
+
+      // Attribution
+      ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.font='9px sans-serif'; ctx.textAlign='right'
+      ctx.fillText('© OpenStreetMap',W-4,H-4)
+    }
+
+    for (let dx=-half_x; dx<=half_x; dx++) {
+      for (let dy=-half_y; dy<=half_y; dy++) {
+        const tx2 = tileX+dx, ty2 = tileY+dy
+        if (ty2 < 0) continue
+        const sub  = subs[(Math.abs(tx2+ty2))%3]
+        const url  = `https://${sub}.tile.openstreetmap.org/${zoom}/${tx2}/${ty2}.png`
+        const img  = new Image(); img.crossOrigin='anonymous'
+        const px   = originX + dx*TILE, py = originY + dy*TILE
+        pending++
+        img.onload  = () => { ctx.drawImage(img,px,py,TILE,TILE); pending--; drawRoute() }
+        img.onerror = () => { pending--; drawRoute() }
+        img.src = url
+      }
+    }
+  }, [route, finds, sessionId, height])
+
+  return (
+    <canvas ref={ref} width={390} height={height}
+      style={{width:'100%',height:height+'px',borderRadius:'12px',display:'block',border:'1px solid #1e293b'}}/>
+  )
 }
 
 // ─── WEATHER BAR ─────────────────────────────────────────────────────────────
