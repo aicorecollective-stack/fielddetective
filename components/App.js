@@ -794,7 +794,7 @@ function HistoryScreen({ finds, sessions, lang, onSelectFind, onSelectSession, o
 }
 
 // ─── SETTINGS SCREEN ────────────────────────────────────────────────────────
-function SettingsScreen({ lang, setLang, fontSize, setFontSize, finds, setFinds, sessions, setSessions }) {
+function SettingsScreen({ lang, setLang, fontSize, setFontSize, finds, setFinds, sessions, setSessions, layerIdx, setLayerIdx }) {
   const t = useT(lang)
   const [sosContacts, setSosContacts] = useState(() => load('fd_sos_contacts', []))
   const [newPhone, setNewPhone]       = useState('')
@@ -855,6 +855,22 @@ function SettingsScreen({ lang, setLang, fontSize, setFontSize, finds, setFinds,
           <input value={newPhone} onChange={e=>setNewPhone(e.target.value)} placeholder={t.sosAddPhone} type="tel"
             style={{flex:1,background:'#1e293b',border:'1px solid #334155',borderRadius:'8px',padding:'10px 12px',color:'#f8fafc',fontSize:'14px',outline:'none'}}/>
           <button onClick={addContact} style={{background:'#334155',border:'none',color:'#f8fafc',borderRadius:'8px',padding:'10px 14px',cursor:'pointer',fontWeight:'600'}}>{t.sosAdd}</button>
+        </div>
+      </Section>
+
+      {/* Map Layers */}
+      <Section icon="🗺️" title={lang==='el'?'Επίπεδα Χάρτη':'Map Layers'}>
+        <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+          {MAP_LAYERS.map((l,idx)=>(
+            <button key={l.k} onClick={()=>setLayerIdx(idx)}
+              style={{width:'100%',background:layerIdx===idx?'#d4a853':'#1e293b',border:`1px solid ${layerIdx===idx?'#d4a853':'#334155'}`,color:layerIdx===idx?'#0f172a':'#94a3b8',padding:'12px 14px',borderRadius:'10px',cursor:'pointer',fontSize:'14px',fontWeight:layerIdx===idx?'700':'400',display:'flex',alignItems:'center',gap:'10px',textAlign:'left'}}>
+              <span style={{fontSize:'20px'}}>{l.emoji}</span>
+              <div>
+                <div style={{fontWeight:layerIdx===idx?'700':'600'}}>{l.label[lang]}</div>
+                {layerIdx===idx && <div style={{fontSize:'11px',opacity:0.7,marginTop:'2px'}}>{lang==='el'?'● Ενεργό':'● Active'}</div>}
+              </div>
+            </button>
+          ))}
         </div>
       </Section>
 
@@ -1062,22 +1078,32 @@ export default function App() {
         {screen==='map' && (
           <div style={{display:'flex',flexDirection:'column',height:'calc(100vh - 128px)'}}>
 
-            {/* Layer tabs */}
-            <div style={{display:'flex',background:'#0f172a',borderBottom:'1px solid #1e293b',overflowX:'auto',flexShrink:0}}>
-              {MAP_LAYERS.map((l,idx)=>(
-                <button key={l.k} onClick={()=>setLayerIdx(idx)}
-                  style={{flex:'0 0 auto',padding:'8px 12px',border:'none',borderBottom:`3px solid ${layerIdx===idx?'#d4a853':'transparent'}`,background:'transparent',color:layerIdx===idx?'#d4a853':'#475569',fontSize:'11px',fontWeight:layerIdx===idx?'700':'400',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:'2px',minWidth:'62px'}}>
-                  <span style={{fontSize:'16px'}}>{l.emoji}</span>
-                  {l.label[lang]}
-                </button>
-              ))}
-            </div>
+
 
             {/* Map */}
             <div style={{flex:1,position:'relative'}}>
               <MapComponent finds={finds} currentPos={curPos} routePoints={route}
                 layerIdx={layerIdx} onMapClick={handleMapClick} tapMode={tapMode}
                 mapGetCenterRef={mapGetCenterRef} mapInstRef={mapInstRef}/>
+
+              {/* Layer button — floating top right */}
+              <div style={{position:'absolute',top:'10px',right:'10px',zIndex:999}}>
+                <button onClick={()=>setShowLayerMenu(l=>!l)}
+                  style={{background:'rgba(15,23,42,0.88)',border:'1px solid #334155',color:MAP_LAYERS[layerIdx].emoji?'#f8fafc':'#94a3b8',borderRadius:'10px',padding:'8px 12px',cursor:'pointer',fontSize:'13px',fontWeight:'600',display:'flex',alignItems:'center',gap:'6px',backdropFilter:'blur(4px)'}}>
+                  {MAP_LAYERS[layerIdx].emoji} {MAP_LAYERS[layerIdx].label[lang]}
+                  <span style={{color:'#64748b',fontSize:'10px'}}>{showLayerMenu?'▲':'▼'}</span>
+                </button>
+                {showLayerMenu && (
+                  <div style={{position:'absolute',top:'42px',right:0,background:'#0f172a',border:'1px solid #334155',borderRadius:'12px',padding:'6px',minWidth:'160px',zIndex:1000,boxShadow:'0 8px 32px rgba(0,0,0,0.5)'}}>
+                    {MAP_LAYERS.map((l,idx)=>(
+                      <button key={l.k} onClick={()=>{setLayerIdx(idx);setShowLayerMenu(false)}}
+                        style={{width:'100%',background:layerIdx===idx?'#d4a853':'transparent',border:'none',color:layerIdx===idx?'#0f172a':'#94a3b8',borderRadius:'8px',padding:'10px 12px',cursor:'pointer',fontSize:'13px',fontWeight:layerIdx===idx?'700':'400',textAlign:'left',display:'flex',alignItems:'center',gap:'8px',marginBottom:'2px'}}>
+                        <span style={{fontSize:'18px'}}>{l.emoji}</span>{l.label[lang]}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Tap banner */}
               {tapMode && (
@@ -1134,7 +1160,8 @@ export default function App() {
         {screen==='settings' && (
           <div style={{animation:'fadeUp 0.2s ease'}}>
             <SettingsScreen lang={lang} setLang={setLang} fontSize={fontSize} setFontSize={setFontSize}
-              finds={finds} setFinds={setFinds} sessions={sessions} setSessions={setSessions}/>
+              finds={finds} setFinds={setFinds} sessions={sessions} setSessions={setSessions}
+              layerIdx={layerIdx} setLayerIdx={setLayerIdx}/>
           </div>
         )}
 
