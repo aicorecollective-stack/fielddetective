@@ -419,8 +419,14 @@ export default function App() {
   const [lang, setLang] = useState('el')
   const [gdpr, setGdpr] = useState(false)
   const [tab, setTab] = useState('map')
-  const [finds, setFinds] = useState([])
-  const [sessions, setSessions] = useState([])
+  const [finds, setFinds] = useState(() => {
+    if (typeof window === 'undefined') return []
+    try { return JSON.parse(localStorage.getItem('fd_finds') || '[]') } catch { return [] }
+  })
+  const [sessions, setSessions] = useState(() => {
+    if (typeof window === 'undefined') return []
+    try { return JSON.parse(localStorage.getItem('fd_sessions') || '[]') } catch { return [] }
+  })
   const [ancAlert, setAncAlert] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
   const [layerIdx, setLayerIdx] = useState(0)
@@ -462,13 +468,23 @@ export default function App() {
       setSessState('idle'); stopGPS(); clearInterval(timerRef.current)
       const dist = route.length>1?(route.reduce((a,p,i)=>i===0?a:a+haverD(route[i-1],p),0)/1000).toFixed(2):'0.00'
       const ns = { id:Date.now(), name:`Session ${sessions.length+1}`, date:new Date().toISOString().split('T')[0], duration:Math.floor(sessTime/60), distance:parseFloat(dist), finds:sessFinds, weather:'Live', location:'GPS', route }
-      setSessions(p=>[ns,...p]); setSessDone({...ns,elapsed:sessTime}); setRoute([])
+      setSessions(p => {
+        const updated = [ns, ...p]
+        try { localStorage.setItem('fd_sessions', JSON.stringify(updated)) } catch {}
+        return updated
+      })
+      setSessDone({...ns,elapsed:sessTime}); setRoute([])
     }
   }
   useEffect(()=>()=>{ stopGPS(); clearInterval(timerRef.current) },[])
 
   const addFind = (f) => {
-    setFinds(p=>[f,...p]); setSessFinds(c=>c+1)
+    setFinds(p => {
+      const updated = [f, ...p]
+      try { localStorage.setItem('fd_finds', JSON.stringify(updated)) } catch {}
+      return updated
+    })
+    setSessFinds(c=>c+1)
     if(isAnc(f)) setTimeout(()=>setAncAlert(f), 700)
   }
 
@@ -509,7 +525,14 @@ export default function App() {
           find={selectedFind}
           lang={lang}
           onClose={()=>setSelectedFind(null)}
-          onDelete={(id)=>{ setFinds(p=>p.filter(f=>f.id!==id)); setSelectedFind(null) }}
+          onDelete={(id)=>{
+            setFinds(p => {
+              const updated = p.filter(f=>f.id!==id)
+              try { localStorage.setItem('fd_finds', JSON.stringify(updated)) } catch {}
+              return updated
+            })
+            setSelectedFind(null)
+          }}
         />
       )}
       {ancAlert && <AncientAlert find={ancAlert} lang={lang} onClose={()=>setAncAlert(null)}/>}
@@ -835,7 +858,7 @@ export default function App() {
               <p style={{color:'#f8fafc',fontSize:'13px',margin:'0 0 4px'}}>• {finds.length} finds · ~{Math.round(finds.length*0.5)} KB</p>
               <p style={{color:'#f8fafc',fontSize:'13px',margin:0}}>• No third-party cookies</p>
             </div>
-            <button onClick={()=>{if(window.confirm('Delete ALL data?'))setFinds([])}} style={{width:'100%',background:'#1e293b',border:'1px solid #ef4444',color:'#ef4444',padding:'14px',borderRadius:'12px',fontWeight:'600',fontSize:'15px',cursor:'pointer',marginTop:'8px'}}>🗑️ Delete All Data</button>
+            <button onClick={()=>{if(window.confirm('Delete ALL data?')){setFinds([]);setSessions([]);try{localStorage.removeItem('fd_finds');localStorage.removeItem('fd_sessions')}catch{}}}} style={{width:'100%',background:'#1e293b',border:'1px solid #ef4444',color:'#ef4444',padding:'14px',borderRadius:'12px',fontWeight:'600',fontSize:'15px',cursor:'pointer',marginTop:'8px'}}>🗑️ Delete All Data</button>
             <p style={{color:'#475569',fontSize:'12px',textAlign:'center',marginTop:'16px',lineHeight:'1.6'}}>Regulation (EU) 2016/679 (GDPR)<br/>Right of access, rectification, erasure</p>
           </div>
         )}
