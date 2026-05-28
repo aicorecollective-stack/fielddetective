@@ -376,6 +376,7 @@ export default function App() {
   const mapGetCenter  = useRef(null)
   const mapInstRef    = useRef(null)
   const [selectedFind, setSelectedFind] = useState(null)
+  const [viewMode, setViewMode]           = useState('list')
   const [showWayback, setShowWayback] = useState(false)
   const [waybackUrl,  setWaybackUrl]  = useState('')
   const [sessTime, setSessTime] = useState(0)
