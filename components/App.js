@@ -193,7 +193,7 @@ function FindDetailModal({ find, lang, onClose, onDelete }) {
               {notes && (
                 <div style={{background:'#0f172a',borderRadius:'12px',padding:'12px',border:'1px solid #d4a853'}}>
                   <div style={{color:'#d4a853',fontSize:'11px',marginBottom:'6px'}}>🤖 AI Ανάλυση</div>
-                  <div style={{color:'#e2e8f0',fontSize:'13px',lineHeight:'1.7'}}>{notes}</div>
+                  <div style={{color:'#e2e8f0',fontSize:'var(--fd-fs, 15px)',lineHeight:'1.8'}}>{notes}</div>
                 </div>
               )}
             </div>
@@ -432,6 +432,7 @@ export default function App() {
   const mapInstRef    = useRef(null)
   const [selectedFind, setSelectedFind] = useState(null)
   const [viewMode, setViewMode]           = useState('list')
+  const [fontSize, setFontSize]           = useState(() => parseInt(typeof window!=='undefined'?localStorage.getItem('fd_fontsize')||'15':'15'))
   const [showWayback, setShowWayback] = useState(false)
   const [waybackUrl,  setWaybackUrl]  = useState('')
   const [sessTime, setSessTime] = useState(0)
@@ -491,7 +492,7 @@ export default function App() {
   if(!gdpr) return <GDPRModal lang={lang} onAccept={()=>setGdpr(true)}/>
 
   return (
-    <div style={{background:'#020617',minHeight:'100vh',maxWidth:'430px',margin:'0 auto',display:'flex',flexDirection:'column',position:'relative'}}>
+    <div style={{background:'#020617',minHeight:'100vh',maxWidth:'430px',margin:'0 auto',display:'flex',flexDirection:'column',position:'relative','--fd-fs':fontSize+'px','--fd-fs-sm':(fontSize-2)+'px','--fd-fs-lg':(fontSize+4)+'px'}}>
       <style>{`
         *{box-sizing:border-box} input,select{outline:none;font-family:'DM Sans',sans-serif} button{font-family:'DM Sans',sans-serif} ::-webkit-scrollbar{width:0}
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
@@ -786,6 +787,43 @@ export default function App() {
         {tab==='privacy' && (
           <div style={{padding:'20px 20px 100px',animation:'fadeUp 0.25s ease'}}>
             <h2 style={{color:'#f8fafc',fontSize:'22px',fontFamily:"'Playfair Display',serif",marginBottom:'20px'}}>{t.priv_title}</h2>
+
+        {/* Font Size Setting */}
+        <div style={{background:'#0f172a',borderRadius:'16px',padding:'18px',marginBottom:'16px',border:'1px solid #1e293b'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'14px'}}>
+            <div>
+              <div style={{color:'#f8fafc',fontSize:'15px',fontWeight:'700'}}>🔤 Μέγεθος Γραμματοσειράς</div>
+              <div style={{color:'#64748b',fontSize:'12px',marginTop:'2px'}}>Font Size</div>
+            </div>
+            <div style={{background:'#1e293b',borderRadius:'8px',padding:'6px 14px',color:'#d4a853',fontSize:'18px',fontWeight:'700',minWidth:'52px',textAlign:'center'}}>
+              {fontSize}
+            </div>
+          </div>
+          {/* Preview */}
+          <div style={{background:'#1e293b',borderRadius:'10px',padding:'12px',marginBottom:'14px',borderLeft:'3px solid #d4a853'}}>
+            <div style={{color:'#64748b',fontSize:'11px',marginBottom:'6px'}}>Προεπισκόπηση / Preview:</div>
+            <div style={{color:'#e2e8f0',fontSize:fontSize+'px',lineHeight:'1.7'}}>
+              Roman silver denarius, circa 200 AD. Excellent preservation. Composition: Ag 85% Cu 15%.
+            </div>
+          </div>
+          {/* Slider */}
+          <input type="range" min={12} max={22} step={1} value={fontSize}
+            onChange={e=>{
+              const v=parseInt(e.target.value)
+              setFontSize(v)
+              if(typeof window!=='undefined') localStorage.setItem('fd_fontsize', v)
+            }}
+            style={{width:'100%',accentColor:'#d4a853',height:'6px',cursor:'pointer'}}
+          />
+          <div style={{display:'flex',justifyContent:'space-between',marginTop:'8px'}}>
+            {[12,14,16,18,20,22].map(s=>(
+              <button key={s} onClick={()=>{setFontSize(s);if(typeof window!=='undefined')localStorage.setItem('fd_fontsize',s)}}
+                style={{background:fontSize===s?'#d4a853':'#1e293b',border:'none',color:fontSize===s?'#0f172a':'#64748b',borderRadius:'6px',padding:'4px 8px',cursor:'pointer',fontSize:'12px',fontWeight:fontSize===s?'700':'400'}}>
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
             {[['📍','GPS Data','Used only during recording. Never stored on servers.'],['🤖','AI Analysis','Photos sent to Anthropic API for analysis only. Not retained.'],['💾','Local Storage','All data stays on your device. Zero cloud storage.'],['🔒','Security','No accounts, no selling of data, no tracking.']].map(([ic,title,desc])=>(
               <div key={title} style={{background:'#1e293b',borderRadius:'14px',padding:'16px',marginBottom:'10px',display:'flex',gap:'14px'}}>
                 <span style={{fontSize:'22px'}}>{ic}</span>
