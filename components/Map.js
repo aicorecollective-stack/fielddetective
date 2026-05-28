@@ -10,6 +10,17 @@ export default function MapComponent({ finds, currentPos, routePoints, layerIdx,
   const routePLRef = useRef(null)
   const posMarkRef = useRef(null)
   const [ready, setReady] = useState(false)
+  const [mapH, setMapH]   = useState(400)
+  useEffect(() => {
+    const calc = () => {
+      // Total height minus: top bar ~52px, recording bar ~44px (when shown), bottom nav ~56px, controls ~90px
+      const h = Math.max(200, window.innerHeight - 242)
+      setMapH(h)
+    }
+    calc()
+    window.addEventListener('resize', calc)
+    return () => window.removeEventListener('resize', calc)
+  }, [])
   const onMapClickRef = useRef(onMapClick)
   const tapModeRef    = useRef(tapMode)
 
@@ -144,7 +155,7 @@ export default function MapComponent({ finds, currentPos, routePoints, layerIdx,
   return (
     <div
       ref={divRef}
-      style={{ width: '100%', height: '100%', cursor: tapMode ? 'crosshair' : 'grab' }}
+      style={{ width: '100%', height: mapH + 'px', cursor: tapMode ? 'crosshair' : 'grab' }}
     />
   )
 }
