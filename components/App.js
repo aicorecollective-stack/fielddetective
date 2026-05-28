@@ -145,7 +145,60 @@ function FindDetailModal({ find, lang, onClose, onDelete }) {
           <div style={{color:'#22c55e',fontSize:'13px',fontFamily:'monospace'}}>{find.lat?.toFixed(6)}°N, {find.lng?.toFixed(6)}°E</div>
         </div>
         {find.notes && <div style={{margin:'0 20px 10px',background:'#0f172a',borderRadius:'12px',padding:'14px',border:'1px solid #1e293b'}}><div style={{color:'#64748b',fontSize:'11px',marginBottom:'6px'}}>📝 Notes</div><div style={{color:'#e2e8f0',fontSize:'14px',lineHeight:'1.6'}}>{find.notes}</div></div>}
-        {find.aiResult && <div style={{margin:'0 20px 10px',background:'#0f172a',borderRadius:'12px',padding:'14px',border:'1px solid #d4a853'}}><div style={{color:'#d4a853',fontSize:'11px',marginBottom:'6px'}}>🤖 AI Analysis</div><div style={{color:'#e2e8f0',fontSize:'13px',lineHeight:'1.8',whiteSpace:'pre-line'}}>{find.aiResult}</div></div>}
+        {find.aiResult && (() => {
+          const r = find.aiResult
+          const get = (key) => (r.match(new RegExp(key + ':\\s*(.+)', 'i')) || [])[1]?.trim() || null
+          const period  = get('Period')
+          const comp    = get('Composition')
+          const value   = get('Value')
+          const notes   = get('Notes')
+          const material= get('Material')
+          return (
+            <div style={{margin:'0 20px 10px'}}>
+              {/* Value + Composition highlight cards */}
+              {(value || comp) && (
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
+                  {value && (
+                    <div style={{background:'#0f172a',borderRadius:'12px',padding:'12px',border:'1px solid #22c55e'}}>
+                      <div style={{color:'#22c55e',fontSize:'11px',marginBottom:'4px'}}>💰 Εκτιμώμενη Αξία</div>
+                      <div style={{color:'#f8fafc',fontSize:'14px',fontWeight:'700'}}>{value}</div>
+                    </div>
+                  )}
+                  {comp && comp!=='N/A' && (
+                    <div style={{background:'#0f172a',borderRadius:'12px',padding:'12px',border:'1px solid #6366f1'}}>
+                      <div style={{color:'#818cf8',fontSize:'11px',marginBottom:'4px'}}>⚗️ Σύνθεση</div>
+                      <div style={{color:'#f8fafc',fontSize:'12px',fontWeight:'600',lineHeight:'1.5'}}>{comp}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Period + Material */}
+              {(period || material) && (
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
+                  {period && (
+                    <div style={{background:'#0f172a',borderRadius:'12px',padding:'12px',border:'1px solid #334155'}}>
+                      <div style={{color:'#64748b',fontSize:'11px',marginBottom:'4px'}}>📅 Εποχή</div>
+                      <div style={{color:'#f8fafc',fontSize:'13px',fontWeight:'600'}}>{period}</div>
+                    </div>
+                  )}
+                  {material && (
+                    <div style={{background:'#0f172a',borderRadius:'12px',padding:'12px',border:'1px solid #334155'}}>
+                      <div style={{color:'#64748b',fontSize:'11px',marginBottom:'4px'}}>🪨 Υλικό</div>
+                      <div style={{color:'#f8fafc',fontSize:'13px',fontWeight:'600'}}>{material}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Notes */}
+              {notes && (
+                <div style={{background:'#0f172a',borderRadius:'12px',padding:'12px',border:'1px solid #d4a853'}}>
+                  <div style={{color:'#d4a853',fontSize:'11px',marginBottom:'6px'}}>🤖 AI Ανάλυση</div>
+                  <div style={{color:'#e2e8f0',fontSize:'13px',lineHeight:'1.7'}}>{notes}</div>
+                </div>
+              )}
+            </div>
+          )
+        })()}
         {isAnc(find) && <div style={{margin:'0 20px 10px',background:'#f59e0b11',borderRadius:'12px',padding:'14px',border:'1px solid #f59e0b'}}><div style={{color:'#fbbf24',fontSize:'13px',fontWeight:'600',marginBottom:'4px'}}>⚠️ Possible Ancient Find</div><div style={{color:'#94a3b8',fontSize:'12px'}}>Law 3028/2002 · 213 214 9805</div></div>}
       </div>
     </div>
@@ -191,13 +244,15 @@ function AddFindModal({ lang, sessions, currentPos, onClose, onAdd }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: `You are an expert archaeologist. Analyze this metal detector find image. Respond in EXACTLY this format:
-Name: [object name, max 5 words]
-Period: [historical period]
-Material: [material]
-Rarity: [1-5]
+          prompt: `You are an expert archaeologist and numismatist. Analyze this metal detector find. Respond in EXACTLY this format, no extra text:
+Name: [object name max 5 words]
+Period: [historical period or century]
+Material: [primary material]
+Composition: [metal percentages e.g. Cu 85% Sn 10% Pb 5%, or N/A if non-metal]
+Rarity: [number 1-5]
+Value: [estimated EUR range e.g. 10-50 EUR or 200-500 EUR]
 Ancient: [yes or no]
-Notes: [one sentence]`,
+Notes: [one sentence about significance or condition]`,
           imageBase64: compressed,
         }),
       })
