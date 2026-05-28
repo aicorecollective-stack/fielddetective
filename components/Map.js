@@ -4,158 +4,105 @@ import { getR, isAnc } from './helpers'
 
 export default function MapComponent({ finds, currentPos, routePoints, layerIdx, onMapClick, tapMode, mapGetCenterRef, mapInstRef }) {
   const divRef     = useRef(null)
-  const mapRef     = useRef(null)   // leaflet map instance
-  const tileRef    = useRef(null)   // current tile layer
+  const mapRef     = useRef(null)
+  const tileRef    = useRef(null)
   const markersRef = useRef([])
   const routePLRef = useRef(null)
-  const posMarkRef = useRef(null)
+  const posRef     = useRef(null)
   const [ready, setReady] = useState(false)
   const [mapH, setMapH]   = useState(400)
+  const onMapClickRef = useRef(onMapClick)
+  useEffect(() => { onMapClickRef.current = onMapClick }, [onMapClick])
+
+  // Compute pixel height (Leaflet needs explicit px, not %)
   useEffect(() => {
-    const calc = () => {
-      // Total height minus: top bar ~52px, recording bar ~44px (when shown), bottom nav ~56px, controls ~90px
-      const h = Math.max(200, window.innerHeight - 242)
-      setMapH(h)
-    }
+    const calc = () => setMapH(Math.max(200, window.innerHeight - 250))
     calc()
     window.addEventListener('resize', calc)
     return () => window.removeEventListener('resize', calc)
   }, [])
-  const onMapClickRef = useRef(onMapClick)
-  const tapModeRef    = useRef(tapMode)
 
-  // ── Sync latest callbacks to refs so Leaflet closure always sees current values
-  useEffect(() => { onMapClickRef.current = onMapClick }, [onMapClick])
-  useEffect(() => { tapModeRef.current    = tapMode    }, [tapMode])
-
-  // ── 1. Load Leaflet + init map ─────────────────────────────────────────────
+  // Load Leaflet
   useEffect(() => {
-    let cancelled = false
-    import('leaflet').then(mod => {
-      if (cancelled || !divRef.current || mapRef.current) return
-      const L = mod.default || mod
-
-      // Fix icon paths
-      delete L.Icon.Default.prototype._getIconUrl
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-        iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-      })
-
-      const center = currentPos ? [currentPos.lat, currentPos.lng] : [37.9838, 23.7275]
-      mapRef.current = L.map(divRef.current, { zoomControl: true }).setView(center, 14)
-
-      // Don't add tile here — the switch effect handles it once ready=true
-
-      mapRef.current.on('click', e => {
-        // Always read latest values from refs — avoids stale closure
-        if (onMapClickRef.current) {
-          onMapClickRef.current({ lat: e.latlng.lat, lng: e.latlng.lng })
-        }
-      })
-
-      ;[100, 500, 1200].forEach(d => setTimeout(() => mapRef.current?.invalidateSize(), d))
-
-      // Expose map instance to parent
-      if (mapInstRef) mapInstRef.current = mapRef.current
-
-      // Expose getCenter as a callable function — always returns latest value
-      if (mapGetCenterRef) {
-        mapGetCenterRef.current = () => {
-          const c = mapRef.current?.getCenter()
-          return c ? { lat: c.lat, lng: c.lng } : { lat: 37.9838, lng: 23.7275 }
-        }
-      }
-
-
-      setReady(true)  // ← this makes layer effect re-run with correct state
-    })
-    return () => {
-      cancelled = true
-      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
-    }
+    if (window.L) { setReady(true); return }
+    const css = document.createElement('link')
+    css.rel = 'stylesheet'
+    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'
+    document.head.appendChild(css)
+    const js = document.createElement('script')
+    js.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'
+    js.onload = () => setReady(true)
+    document.head.appendChild(js)
   }, [])
 
-  // ── 2. Switch tile layer ───────────────────────────────────────────────────
-  // Depends on BOTH layerIdx AND ready — so if user clicks before map loads,
-  // this runs again once ready becomes true
+  // Init map
   useEffect(() => {
-    if (!ready || !mapRef.current) return
+    if (!ready || !divRef.current || mapRef.current) return
+    const L = window.L
+    const center = currentPos ? [currentPos.lat, currentPos.lng] : [37.9838, 23.7275]
+    mapRef.current = L.map(divRef.current, { zoomControl: true }).setView(center, 14)
+    const cfg = MAP_LAYERS[0]
+    const opts = { attribution: cfg.attribution, maxZoom: cfg.maxZoom || 18 }
+    if (cfg.subdomains) opts.subdomains = cfg.subdomains
+    tileRef.current = L.tileLayer(cfg.url, opts).addTo(mapRef.current)
+    if (mapInstRef)    mapInstRef.current    = mapRef.current
+    if (mapGetCenterRef) mapGetCenterRef.current = () => { const c = mapRef.current?.getCenter(); return c ? { lat: c.lat, lng: c.lng } : null }
+    mapRef.current.on('click', e => { if (onMapClickRef.current) onMapClickRef.current({ lat: e.latlng.lat, lng: e.latlng.lng }) })
+    ;[100, 400, 900].forEach(d => setTimeout(() => mapRef.current?.invalidateSize(), d))
+    return () => { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null } }
+  }, [ready])
 
-    import('leaflet').then(mod => {
-      const L = mod.default || mod
-      if (!mapRef.current) return
-
-      if (tileRef.current) {
-        mapRef.current.removeLayer(tileRef.current)
-        tileRef.current = null
-      }
-
-      const cfg = MAP_LAYERS[layerIdx]
-      tileRef.current = L.tileLayer(cfg.url, {
-        attribution: cfg.attribution,
-        maxZoom: cfg.maxZoom || 18,
-        ...(cfg.subdomains ? { subdomains: cfg.subdomains } : {}),
-      }).addTo(mapRef.current)
-    })
-  }, [layerIdx, ready])   // ← KEY FIX: depends on ready
-
-  // ── 3. Find markers ────────────────────────────────────────────────────────
+  // Switch layer
   useEffect(() => {
-    if (!ready || !mapRef.current) return
-    import('leaflet').then(mod => {
-      const L = mod.default || mod
-      markersRef.current.forEach(m => mapRef.current?.removeLayer(m))
-      markersRef.current = []
-      finds.forEach(f => {
-        const rv = getR(f.rarity)
-        const icon = L.divIcon({
-          html: `<div style="width:26px;height:26px;border-radius:50%;background:${rv.color};border:3px solid white;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 6px rgba(0,0,0,0.4)">${rv.emoji}</div>`,
-          iconSize: [26, 26], className: '',
-        })
-        markersRef.current.push(
-          L.marker([f.lat, f.lng], { icon })
-            .addTo(mapRef.current)
-            .bindPopup(`<b>${f.name}</b><br><small>${f.category} · ${f.depth}cm${isAnc(f) ? ' · ⚠️' : ''}</small>`)
-        )
+    if (!ready || !mapRef.current || !window.L) return
+    const L = window.L
+    if (tileRef.current) { try { mapRef.current.removeLayer(tileRef.current) } catch {} tileRef.current = null }
+    const cfg = MAP_LAYERS[layerIdx]
+    const opts = { attribution: cfg.attribution, maxZoom: cfg.maxZoom || 18 }
+    if (cfg.subdomains) opts.subdomains = cfg.subdomains
+    tileRef.current = L.tileLayer(cfg.url, opts).addTo(mapRef.current)
+  }, [layerIdx, ready])
+
+  // Finds markers
+  useEffect(() => {
+    if (!ready || !mapRef.current || !window.L) return
+    const L = window.L
+    markersRef.current.forEach(m => { try { mapRef.current.removeLayer(m) } catch {} })
+    markersRef.current = []
+    finds.forEach(f => {
+      const rv = getR(f.rarity)
+      const icon = L.divIcon({
+        html: `<div style="width:26px;height:26px;border-radius:50%;background:${rv.color};border:3px solid white;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 6px rgba(0,0,0,0.4)">${rv.emoji}</div>`,
+        iconSize: [26, 26], className: ''
       })
+      markersRef.current.push(
+        L.marker([f.lat, f.lng], { icon }).addTo(mapRef.current)
+          .bindPopup(`<b>${f.name}</b><br><small>${f.category} · ${f.depth}cm</small>`)
+      )
     })
   }, [finds, ready])
 
-  // ── 4. Route ───────────────────────────────────────────────────────────────
+  // Route
   useEffect(() => {
-    if (!ready || !mapRef.current || routePoints.length < 2) return
-    import('leaflet').then(mod => {
-      const L = mod.default || mod
-      if (routePLRef.current) mapRef.current?.removeLayer(routePLRef.current)
-      routePLRef.current = L.polyline(
-        routePoints.map(p => [p.lat, p.lng]),
-        { color: '#d4a853', weight: 3, dashArray: '6 4' }
-      ).addTo(mapRef.current)
-    })
+    if (!ready || !mapRef.current || !window.L || routePoints.length < 2) return
+    if (routePLRef.current) { try { mapRef.current.removeLayer(routePLRef.current) } catch {} }
+    routePLRef.current = window.L.polyline(routePoints.map(p => [p.lat, p.lng]), { color: '#d4a853', weight: 3, dashArray: '6 4' }).addTo(mapRef.current)
   }, [routePoints, ready])
 
-  // ── 5. Position dot ────────────────────────────────────────────────────────
+  // Position dot
   useEffect(() => {
-    if (!ready || !mapRef.current || !currentPos) return
-    import('leaflet').then(mod => {
-      const L = mod.default || mod
-      if (posMarkRef.current) mapRef.current?.removeLayer(posMarkRef.current)
-      const icon = L.divIcon({
-        html: `<div style="width:16px;height:16px;border-radius:50%;background:#3b82f6;border:3px solid white;box-shadow:0 0 0 4px rgba(59,130,246,0.3)"></div>`,
-        iconSize: [16, 16], className: '',
-      })
-      posMarkRef.current = L.marker([currentPos.lat, currentPos.lng], { icon, zIndexOffset: 1000 })
-        .addTo(mapRef.current)
-      mapRef.current.panTo([currentPos.lat, currentPos.lng])
+    if (!ready || !mapRef.current || !window.L || !currentPos) return
+    const L = window.L
+    if (posRef.current) { try { mapRef.current.removeLayer(posRef.current) } catch {} }
+    const icon = L.divIcon({
+      html: `<div style="width:16px;height:16px;border-radius:50%;background:#3b82f6;border:3px solid white;box-shadow:0 0 0 4px rgba(59,130,246,0.3)"></div>`,
+      iconSize: [16, 16], className: ''
     })
+    posRef.current = L.marker([currentPos.lat, currentPos.lng], { icon, zIndexOffset: 1000 }).addTo(mapRef.current)
+    mapRef.current.panTo([currentPos.lat, currentPos.lng])
   }, [currentPos, ready])
 
   return (
-    <div
-      ref={divRef}
-      style={{ width: '100%', height: mapH + 'px', cursor: tapMode ? 'crosshair' : 'grab' }}
-    />
+    <div ref={divRef} style={{ width: '100%', height: mapH + 'px', cursor: tapMode ? 'crosshair' : 'grab' }}/>
   )
 }

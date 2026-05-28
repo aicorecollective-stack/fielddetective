@@ -1158,11 +1158,16 @@ export default function App() {
 
         {/* HISTORY SCREEN */}
         {screen==='history' && (
-          <div style={{flex:1,overflowY:'auto',animation:'fadeUp 0.2s ease'}}>
+          <div style={{flex:1,overflowY:'auto',animation:'fadeUp 0.2s ease',position:'relative'}}>
             <HistoryScreen finds={finds} sessions={sessions} lang={lang}
               onSelectFind={setSelectedFind}
               onSelectSession={setSelectedSession}
               onDeleteFind={deleteFind}/>
+            {/* FAB — add find from History screen */}
+            <button onClick={()=>setShowFindModal(true)}
+              style={{position:'fixed',bottom:'80px',right:'20px',width:'58px',height:'58px',borderRadius:'50%',background:'#d4a853',border:'none',cursor:'pointer',boxShadow:'0 4px 24px rgba(212,168,83,0.5)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'28px',zIndex:100}}>
+              +
+            </button>
           </div>
         )}
 
