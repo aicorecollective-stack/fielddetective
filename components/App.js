@@ -1002,6 +1002,16 @@ export default function App() {
   }
   useEffect(()=>()=>{ stopGPS(); clearInterval(timerRef.current) },[])
 
+  // Auto-get position on app open (one-time, fast)
+  useEffect(()=>{
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      pos => setCurPos({ lat:pos.coords.latitude, lng:pos.coords.longitude }),
+      ()  => {},
+      { enableHighAccuracy:true, timeout:8000, maximumAge:30000 }
+    )
+  },[])
+
   const handleMapClick = useCallback((latlng) => {
     if (!tapMode) return
     setTappedLoc(latlng); setTapMode(false); setShowFindModal(true)
@@ -1081,7 +1091,7 @@ export default function App() {
 
 
             {/* Map */}
-            <div style={{flex:1,position:'relative'}}>
+            <div style={{flex:1,position:'relative',minHeight:'200px'}}>
               <MapComponent finds={finds} currentPos={curPos} routePoints={route}
                 layerIdx={layerIdx} onMapClick={handleMapClick} tapMode={tapMode}
                 mapGetCenterRef={mapGetCenterRef} mapInstRef={mapInstRef}/>
