@@ -1072,11 +1072,11 @@ export default function App() {
       )}
 
       {/* Main content */}
-      <div style={{flex:1,overflowY:'auto',paddingBottom:'0px',display:'flex',flexDirection:'column'}}>
+      <div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0,overflow:'hidden'}}>
 
         {/* MAP SCREEN */}
         {screen==='map' && (
-          <div style={{display:'flex',flexDirection:'column',height:'calc(100vh - 128px)'}}>
+          <div style={{display:'flex',flexDirection:'column',flex:1,minHeight:0}}>
 
 
 
@@ -1148,7 +1148,7 @@ export default function App() {
 
         {/* HISTORY SCREEN */}
         {screen==='history' && (
-          <div style={{animation:'fadeUp 0.2s ease'}}>
+          <div style={{flex:1,overflowY:'auto',animation:'fadeUp 0.2s ease'}}>
             <HistoryScreen finds={finds} sessions={sessions} lang={lang}
               onSelectFind={setSelectedFind}
               onSelectSession={setSelectedSession}
@@ -1158,7 +1158,7 @@ export default function App() {
 
         {/* SETTINGS SCREEN */}
         {screen==='settings' && (
-          <div style={{animation:'fadeUp 0.2s ease'}}>
+          <div style={{flex:1,overflowY:'auto',animation:'fadeUp 0.2s ease'}}>
             <SettingsScreen lang={lang} setLang={setLang} fontSize={fontSize} setFontSize={setFontSize}
               finds={finds} setFinds={setFinds} sessions={sessions} setSessions={setSessions}
               layerIdx={layerIdx} setLayerIdx={setLayerIdx}/>
