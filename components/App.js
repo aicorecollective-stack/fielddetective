@@ -3,7 +3,8 @@ import dynamic from 'next/dynamic'
 import { MAP_LAYERS, CATEGORIES, RARITY } from './constants'
 import { getR, isAnc, fmtTime, haverD, callAI, exportGPX } from './helpers'
 
-const MapComponent = dynamic(() => import('./Map'), { ssr: false })
+const MapComponent    = dynamic(() => import('./Map'),           { ssr: false })
+const OfflineManager  = dynamic(() => import('./OfflineManager'), { ssr: false })
 
 // ─── TRANSLATIONS ─────────────────────────────────────────────────────────────
 const T = {
@@ -870,7 +871,7 @@ function HistoryScreen({ finds, sessions, lang, onSelectFind, onSelectSession, o
 }
 
 // ─── SETTINGS SCREEN ────────────────────────────────────────────────────────
-function SettingsScreen({ lang, setLang, fontSize, setFontSize, finds, setFinds, sessions, setSessions, layerIdx, setLayerIdx }) {
+function SettingsScreen({ lang, setLang, fontSize, setFontSize, finds, setFinds, sessions, setSessions, layerIdx, setLayerIdx, currentPos }) {
   const t = useT(lang)
   const [sosContacts, setSosContacts] = useState(() => load('fd_sos_contacts', []))
   const [newPhone, setNewPhone]       = useState('')
@@ -948,6 +949,11 @@ function SettingsScreen({ lang, setLang, fontSize, setFontSize, finds, setFinds,
             </button>
           ))}
         </div>
+      </Section>
+
+      {/* Offline Maps */}
+      <Section icon="📥" title={lang==='el'?'Offline Χάρτες':'Offline Maps'}>
+        <OfflineManager currentPos={currentPos} lang={lang}/>
       </Section>
 
       {/* Wayback */}
@@ -1077,6 +1083,13 @@ export default function App() {
     }
   }
   useEffect(()=>()=>{ stopGPS(); clearInterval(timerRef.current) },[])
+
+  // Register Service Worker for offline maps
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(()=>{})
+    }
+  }, [])
 
   // Auto-get position on app open (one-time, fast)
   useEffect(()=>{
@@ -1252,7 +1265,7 @@ export default function App() {
           <div style={{flex:1,overflowY:'auto',animation:'fadeUp 0.2s ease'}}>
             <SettingsScreen lang={lang} setLang={setLang} fontSize={fontSize} setFontSize={setFontSize}
               finds={finds} setFinds={setFinds} sessions={sessions} setSessions={setSessions}
-              layerIdx={layerIdx} setLayerIdx={setLayerIdx}/>
+              layerIdx={layerIdx} setLayerIdx={setLayerIdx} currentPos={curPos}/>
           </div>
         )}
 
