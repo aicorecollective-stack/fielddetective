@@ -269,18 +269,18 @@ function FindModal({ lang, sessions, pos, onClose, onSave }) {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({
               prompt: `You are an expert archaeologist and numismatist analyzing a metal detector find photo.
-Respond in JSON only, no other text:
+Respond in JSON only, no other text. Write "historical_context" and "why_this_match" in ${lang==='el'?'Greek (Ελληνικά)':'English'}:
 {
-  "name": "object name (max 5 words)",
-  "period": "historical period",
-  "material": "primary material",
+  "name": "object name (max 5 words, in English)",
+  "period": "historical period (in ${lang==='el'?'Greek':'English'})",
+  "material": "primary material (in ${lang==='el'?'Greek':'English'})",
   "composition": "metal percentages e.g. Ag 85% Cu 15%, or N/A",
   "rarity": 3,
   "confidence": 78,
   "value": "50-200 EUR",
   "ancient": false,
-  "historical_context": "2-3 sentences about historical significance",
-  "why_this_match": "1-2 sentences explaining the visual reasoning"
+  "historical_context": "2-3 sentences in ${lang==='el'?'Greek':'English'} about historical significance",
+  "why_this_match": "1-2 sentences in ${lang==='el'?'Greek':'English'} explaining the visual reasoning"
 }`,
               imageBase64: compressed,
             })
@@ -425,7 +425,7 @@ Respond in JSON only, no other text:
                   {aiData.historical_context && (
                     <div style={{marginBottom:'10px'}}>
                       <div style={{color:'#64748b',fontSize:'11px',marginBottom:'4px'}}>🏛️ {t.historical}</div>
-                      <div style={{color:'#e2e8f0',fontSize:'13px',lineHeight:'1.6'}}>{aiData.historical_context}</div>
+                      <div className='fd-text' style={{color:'#e2e8f0',lineHeight:'1.6'}}>{aiData.historical_context}</div>
                     </div>
                   )}
 
@@ -433,7 +433,7 @@ Respond in JSON only, no other text:
                   {aiData.why_this_match && (
                     <div style={{borderTop:'1px solid #334155',paddingTop:'10px'}}>
                       <div style={{color:'#64748b',fontSize:'11px',marginBottom:'4px'}}>🔍 {t.whyThis}</div>
-                      <div style={{color:'#94a3b8',fontSize:'12px',lineHeight:'1.6',fontStyle:'italic'}}>{aiData.why_this_match}</div>
+                      <div className='fd-text-sm' style={{color:'#94a3b8',lineHeight:'1.6',fontStyle:'italic'}}>{aiData.why_this_match}</div>
                     </div>
                   )}
 
@@ -517,8 +517,8 @@ function SessionSummary({ session, finds, lang, onDone }) {
       const res = await fetch('/api/ai', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          prompt: `Metal detecting session summary. Location: ${session.location}. Duration: ${session.duration} min. Distance: ${session.distance}km. Finds: ${findsList.join(', ')||'none'}.
-Write a brief summary in ${lang==='el'?'Greek':'English'} (3-4 sentences): what was found, historical significance, and one tip for next session in this area. Be enthusiastic but accurate.`
+          prompt: `You are a metal detecting expert. Session details: Location: ${session.location}, Duration: ${session.duration} min, Distance: ${session.distance}km, Finds: ${findsList.join(', ')||'none'}.
+Write a brief summary in ${lang==='el'?'Greek (Ελληνικά)':'English'} (3-4 sentences): what was found, historical significance of the area, and one practical tip for the next session here. Be enthusiastic and specific.`
         })
       })
       const data = await res.json()
@@ -585,7 +585,7 @@ Write a brief summary in ${lang==='el'?'Greek':'English'} (3-4 sentences): what 
         <div style={{background:'linear-gradient(135deg,#0f172a,#1e293b)',border:'1px solid #d4a853',borderRadius:'14px',padding:'16px',marginBottom:'20px'}}>
           <div style={{color:'#d4a853',fontSize:'13px',fontWeight:'700',marginBottom:'10px'}}>🤖 {t.aiSummary}</div>
           {summary ? (
-            <p style={{color:'#e2e8f0',fontSize:'14px',lineHeight:'1.7',margin:0}}>{summary}</p>
+            <p className='fd-text' style={{color:'#e2e8f0',lineHeight:'1.7',margin:0}}>{summary}</p>
           ) : (
             <button onClick={getAISummary} disabled={loading}
               style={{width:'100%',background:loading?'#334155':'#d4a853',border:'none',color:loading?'#64748b':'#0f172a',padding:'12px',borderRadius:'10px',fontWeight:'700',fontSize:'14px',cursor:loading?'not-allowed':'pointer'}}>
@@ -673,7 +673,7 @@ function FindDetail({ find, lang, onClose, onDelete }) {
               {d.historical_context && (
                 <div style={{background:'#0f172a',border:'1px solid #334155',borderRadius:'10px',padding:'12px 14px',marginBottom:'12px'}}>
                   <div style={{color:'#64748b',fontSize:'11px',marginBottom:'6px'}}>🏛️ {t.historical}</div>
-                  <div style={{color:'#e2e8f0',fontSize:'14px',lineHeight:'1.7'}}>{d.historical_context}</div>
+                  <div className='fd-text' style={{color:'#e2e8f0',lineHeight:'1.7'}}>{d.historical_context}</div>
                 </div>
               )}
 
@@ -681,7 +681,7 @@ function FindDetail({ find, lang, onClose, onDelete }) {
               {d.why_this_match && (
                 <div style={{background:'#0f172a',border:'1px solid #d4a853',borderRadius:'10px',padding:'12px 14px',marginBottom:'12px'}}>
                   <div style={{color:'#d4a853',fontSize:'11px',marginBottom:'6px'}}>🔍 {t.whyThis}</div>
-                  <div style={{color:'#94a3b8',fontSize:'13px',lineHeight:'1.7',fontStyle:'italic'}}>{d.why_this_match}</div>
+                  <div className='fd-text-sm' style={{color:'#94a3b8',lineHeight:'1.7',fontStyle:'italic'}}>{d.why_this_match}</div>
                 </div>
               )}
             </>
@@ -691,7 +691,7 @@ function FindDetail({ find, lang, onClose, onDelete }) {
           {find.notes && (
             <div style={{background:'#0f172a',border:'1px solid #334155',borderRadius:'10px',padding:'12px 14px',marginBottom:'12px'}}>
               <div style={{color:'#64748b',fontSize:'11px',marginBottom:'6px'}}>📝 {t.notes}</div>
-              <div style={{color:'#e2e8f0',fontSize:'14px',lineHeight:'1.6'}}>{find.notes}</div>
+              <div className='fd-text' style={{color:'#e2e8f0',lineHeight:'1.6'}}>{find.notes}</div>
             </div>
           )}
 
@@ -1005,6 +1005,7 @@ export default function App() {
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
       <style>{`
         *{box-sizing:border-box} input,select,button{font-family:'DM Sans',sans-serif;outline:none} ::-webkit-scrollbar{width:0}
+        .fd-text{font-size:inherit!important} .fd-text-sm{font-size:0.87em!important} .fd-text-lg{font-size:1.2em!important}
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
