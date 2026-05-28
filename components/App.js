@@ -1056,11 +1056,11 @@ export default function App() {
       )}
 
       {/* Main content */}
-      <div style={{flex:1,overflowY:'auto',paddingBottom:'72px'}}>
+      <div style={{flex:1,overflowY:'auto',paddingBottom:'0px',display:'flex',flexDirection:'column'}}>
 
         {/* MAP SCREEN */}
         {screen==='map' && (
-          <div style={{display:'flex',flexDirection:'column',height:sessState==='idle'?'calc(100vh - 120px)':'calc(100vh - 160px)'}}>
+          <div style={{display:'flex',flexDirection:'column',height:'calc(100vh - 128px)'}}>
 
             {/* Layer tabs */}
             <div style={{display:'flex',background:'#0f172a',borderBottom:'1px solid #1e293b',overflowX:'auto',flexShrink:0}}>
