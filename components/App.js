@@ -453,7 +453,18 @@ export default function App() {
   const startGPS = () => {
     if(!navigator.geolocation) return
     watchRef.current = navigator.geolocation.watchPosition(
-      pos => { const p={lat:pos.coords.latitude,lng:pos.coords.longitude}; setCurPos(p); setRoute(r=>[...r,p]) },
+      pos => {
+        const p = {lat:pos.coords.latitude, lng:pos.coords.longitude}
+        setCurPos(p)
+        setRoute(r=>[...r,p])
+        // Fetch location name once (when we first get position)
+        if (!locationName) {
+          fetch(`/api/geocode?lat=${p.lat}&lng=${p.lng}`)
+            .then(r=>r.json())
+            .then(d=>{ if(d.name) setLocationName(d.name) })
+            .catch(()=>{})
+        }
+      },
       () => {},
       { enableHighAccuracy:true, timeout:10000, maximumAge:5000 }
     )
@@ -467,13 +478,13 @@ export default function App() {
     else if(action==='stop'){
       setSessState('idle'); stopGPS(); clearInterval(timerRef.current)
       const dist = route.length>1?(route.reduce((a,p,i)=>i===0?a:a+haverD(route[i-1],p),0)/1000).toFixed(2):'0.00'
-      const ns = { id:Date.now(), name:`Session ${sessions.length+1}`, date:new Date().toISOString().split('T')[0], duration:Math.floor(sessTime/60), distance:parseFloat(dist), finds:sessFinds, weather:'Live', location:'GPS', route }
+      const ns = { id:Date.now(), name:locationName ? `${locationName} #${sessions.length+1}` : `Session ${sessions.length+1}`, date:new Date().toISOString().split('T')[0], duration:Math.floor(sessTime/60), distance:parseFloat(dist), finds:sessFinds, weather:'Live', location:locationName||'GPS', route }
       setSessions(p => {
         const updated = [ns, ...p]
         try { localStorage.setItem('fd_sessions', JSON.stringify(updated)) } catch {}
         return updated
       })
-      setSessDone({...ns,elapsed:sessTime}); setRoute([])
+      setSessDone({...ns,elapsed:sessTime}); setRoute([]); setLocationName('')
     }
   }
   useEffect(()=>()=>{ stopGPS(); clearInterval(timerRef.current) },[])
@@ -659,6 +670,7 @@ export default function App() {
                   </div>
                   <div style={{color:'#f8fafc',fontSize:'16px',fontWeight:'700',fontVariantNumeric:'tabular-nums'}}>{fmtTime(sessTime)}</div>
                   <div style={{color:'#64748b',fontSize:'10px'}}>{dist} km</div>
+            {locationName && <div style={{color:'#94a3b8',fontSize:'10px',marginTop:'2px'}}>📍 {locationName}</div>}
                 </div>
               )}
             </div>
