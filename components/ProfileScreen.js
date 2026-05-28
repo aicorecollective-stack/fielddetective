@@ -90,7 +90,7 @@ export default function ProfileScreen({ user, profile, lang, finds, sessions, on
         </div>
         <button onClick={()=>{ if(editing) save(); else setEditing(true) }}
           style={{background:editing?'#d4a853':'#1e293b',border:`1px solid ${editing?'#d4a853':'#334155'}`,color:editing?'#0f172a':'#94a3b8',borderRadius:'10px',padding:'8px 14px',cursor:'pointer',fontWeight:'600',fontSize:'13px'}}>
-          {editing ? (saving?'...:t.save) : t.edit}
+          {editing ? (saving?'...':t.save) : t.edit}
         </button>
       </div>
 
