@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { supabase, getProfile } from '../lib/supabase'
 import dynamic from 'next/dynamic'
 import { MAP_LAYERS, CATEGORIES, RARITY } from './constants'
 import { getR, isAnc, fmtTime, haverD, callAI, exportGPX } from './helpers'
 
 const MapComponent    = dynamic(() => import('./Map'),           { ssr: false })
 const OfflineManager  = dynamic(() => import('./OfflineManager'), { ssr: false })
+const AuthModal       = dynamic(() => import('./AuthModal'),       { ssr: false })
+const ProfileScreen   = dynamic(() => import('./ProfileScreen'),   { ssr: false })
 
 // ─── TRANSLATIONS ─────────────────────────────────────────────────────────────
 const T = {
@@ -997,7 +1000,10 @@ export default function App() {
   const [fontSize, setFontSize]   = useState(() => load('fd_fontsize',15))
   const [finds, setFinds]         = useState(() => load('fd_finds',[]))
   const [sessions, setSessions]   = useState(() => load('fd_sessions',[]))
-  const [screen, setScreen]       = useState('map')   // map | history | settings
+  const [screen, setScreen]       = useState('map')   // map | history | settings | profile
+  const [user, setUser]           = useState(null)
+  const [profile, setProfile]     = useState(null)
+  const [showAuth, setShowAuth]   = useState(false)
   const [selectedFind, setSelectedFind]       = useState(null)
   const [selectedSession, setSelectedSession] = useState(null)
   const [showFindModal, setShowFindModal]     = useState(false)
@@ -1091,6 +1097,25 @@ export default function App() {
     }
   }, [])
 
+  // Auth state listener
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user)
+        getProfile(session.user.id).then(({ data }) => setProfile(data))
+      }
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(session.user)
+        getProfile(session.user.id).then(({ data }) => setProfile(data))
+      } else {
+        setUser(null); setProfile(null)
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
   // Auto-get position on app open (one-time, fast)
   useEffect(()=>{
     if (!navigator.geolocation) return
@@ -1127,6 +1152,12 @@ export default function App() {
         .leaflet-container{background:#0f172a}
         .leaflet-control-container,.leaflet-pane,.leaflet-top,.leaflet-bottom{z-index:400!important}
       `}</style>
+
+      {/* Auth Modal */}
+      {showAuth && (
+        <AuthModal lang={lang} onClose={()=>setShowAuth(false)}
+          onAuth={(u,s)=>{ setUser(u); getProfile(u.id).then(({data})=>setProfile(data)) }}/>
+      )}
 
       {/* Overlays */}
       {showFindModal && (
@@ -1260,6 +1291,33 @@ export default function App() {
           </div>
         )}
 
+        {/* PROFILE SCREEN */}
+        {screen==='profile' && (
+          <div style={{flex:1,overflowY:'auto',animation:'fadeUp 0.2s ease'}}>
+            {user ? (
+              <ProfileScreen user={user} profile={profile} lang={lang}
+                finds={finds} sessions={sessions}
+                onProfileUpdate={setProfile}
+                onSignOut={async()=>{ await supabase.auth.signOut(); setUser(null); setProfile(null); setScreen('map') }}/>
+            ) : (
+              <div style={{padding:'40px 20px',textAlign:'center'}}>
+                <div style={{fontSize:'52px',marginBottom:'16px'}}>🕵️</div>
+                <h3 style={{color:'#f8fafc',fontSize:'20px',fontFamily:"'Playfair Display',serif",marginBottom:'8px'}}>FieldDetective</h3>
+                <p style={{color:'#64748b',fontSize:'14px',lineHeight:'1.7',marginBottom:'24px'}}>
+                  {lang==='el'?'Σύνδεσε τον λογαριασμό σου για να αποθηκεύσεις τα ευρήματα σου στο cloud και να αποκτήσεις μοναδικό αριθμό μέλους.':'Connect your account to save finds to the cloud and get your unique member ID.'}
+                </p>
+                <button onClick={()=>setShowAuth(true)}
+                  style={{width:'100%',background:'linear-gradient(135deg,#d4a853,#b8882f)',border:'none',color:'#0f172a',padding:'16px',borderRadius:'14px',fontWeight:'700',fontSize:'17px',cursor:'pointer',marginBottom:'12px'}}>
+                  🔑 {lang==='el'?'Σύνδεση / Εγγραφή':'Sign In / Register'}
+                </button>
+                <button onClick={()=>setScreen('map')} style={{background:'none',border:'none',color:'#475569',cursor:'pointer',fontSize:'13px'}}>
+                  {lang==='el'?'Συνέχεια χωρίς λογαριασμό →':'Continue without account →'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* SETTINGS SCREEN */}
         {screen==='settings' && (
           <div style={{flex:1,overflowY:'auto',animation:'fadeUp 0.2s ease'}}>
@@ -1271,17 +1329,18 @@ export default function App() {
 
       </div>
 
-      {/* Bottom navigation — 3 items only */}
+      {/* Bottom navigation */}
       <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:'430px',background:'#0f172a',borderTop:'1px solid #1e293b',display:'flex',zIndex:80,paddingBottom:'6px'}}>
         {[
           {id:'map',     emoji:'🗺️', label:lang==='el'?'Χάρτης':'Map'},
           {id:'history', emoji:'📍', label:lang==='el'?'Ευρήματα':'Finds'},
           {id:'settings',emoji:'⚙️', label:lang==='el'?'Ρυθμίσεις':'Settings'},
+          {id:'profile', emoji:user?'🟢':'👤', label:lang==='el'?'Προφίλ':'Profile'},
         ].map(({id,emoji,label})=>(
           <button key={id} onClick={()=>setScreen(id)}
             style={{flex:1,background:'none',border:'none',cursor:'pointer',padding:'9px 4px 5px',display:'flex',flexDirection:'column',alignItems:'center',gap:'2px',position:'relative'}}>
             {id==='map'&&sessState==='recording'&&<div style={{position:'absolute',top:'6px',right:'22%',width:'7px',height:'7px',borderRadius:'50%',background:'#ef4444',border:'1.5px solid #0f172a'}}/>}
-            <span style={{fontSize:'20px',filter:screen===id?'none':'grayscale(0.4)'}}>{emoji}</span>
+            <span style={{fontSize:'20px',filter:screen===id?'none':'grayscale(0.3)'}}>{emoji}</span>
             <span style={{fontSize:'10px',color:screen===id?'#d4a853':'#475569',fontWeight:screen===id?'700':'400'}}>{label}</span>
           </button>
         ))}
